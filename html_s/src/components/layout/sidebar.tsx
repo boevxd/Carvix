@@ -7,25 +7,9 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
 import { useLocale } from '@/contexts/locale-context';
 import {
-  LayoutDashboard,
-  Wrench,
-  ClipboardList,
-  Bell,
-  HeadphonesIcon,
-  Truck,
-  BarChart3,
-  Users,
-  Settings,
-  LogOut,
-  ChevronLeft,
-  Menu,
-  X,
-  Shield,
-  Map,
-  Calendar,
-  Package,
-  Activity,
-  FileText,
+  LayoutDashboard, Wrench, ClipboardList, Bell, HeadphonesIcon,
+  Truck, BarChart3, Users, Settings, LogOut, ChevronLeft, Menu, X,
+  Shield, Map, Calendar, Package, Activity, FileText,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -70,16 +54,16 @@ export function Sidebar({ role = 'driver' }: SidebarProps) {
   };
 
   const items = navItems[role];
-
   const roleLabels = {
     driver: t('role.driver'),
     dispatcher: t('role.dispatcher'),
     admin: t('role.admin'),
   };
 
-  const initials = user
-    ? user.firstName.charAt(0) + user.lastName.charAt(0)
-    : 'ФК';
+  const nameParts = user?.full_name?.split(' ') ?? [];
+  const initials = nameParts.length >= 2
+    ? nameParts[0].charAt(0) + nameParts[1].charAt(0)
+    : nameParts[0]?.charAt(0) ?? 'ФК';
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
@@ -135,7 +119,7 @@ export function Sidebar({ role = 'driver' }: SidebarProps) {
               {initials}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-medium text-white truncate">{user.name}</span>
+              <span className="text-sm font-medium text-white truncate">{user.full_name}</span>
               <span className="text-xs text-slate-500 truncate">{user.email}</span>
             </div>
           </div>

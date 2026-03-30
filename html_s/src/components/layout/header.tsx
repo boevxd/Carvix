@@ -18,10 +18,11 @@ export function Header({ title, subtitle }: HeaderProps) {
   const { user, logout } = useAuth();
   const { t } = useLocale();
 
-  const initials = user
-    ? user.firstName.charAt(0) + user.lastName.charAt(0)
-    : 'ФК';
-  const displayName = user ? `${user.firstName} ${user.lastName.charAt(0)}.` : '';
+  const parts = user?.full_name?.split(' ') ?? [];
+  const initials = parts.length >= 2
+    ? parts[0].charAt(0) + parts[1].charAt(0)
+    : parts[0]?.charAt(0) ?? 'ФК';
+  const displayName = parts[0] ? `${parts[0]} ${parts[1]?.charAt(0) ?? ''}.` : '';
 
   return (
     <header className="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-700/60">
@@ -80,7 +81,7 @@ export function Header({ title, subtitle }: HeaderProps) {
                 <div className="fixed inset-0 z-40" onClick={() => setProfileOpen(false)} />
                 <div className="absolute right-0 top-12 w-56 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg z-50 py-1.5 animate-fade-in">
                   <div className="px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-700">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white">{user?.name}</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">{user?.full_name}</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400">{user?.email}</p>
                   </div>
                   <div className="py-1">

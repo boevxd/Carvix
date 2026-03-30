@@ -258,7 +258,7 @@ def change_password(
     if not verify_password_hash(data.current_password, user["password_hash"]):
         raise HTTPException(status_code=400, detail="Неверный текущий пароль")
 
-    new_hash = hashlib.md5(data.new_password.encode()).hexdigest()
+    new_hash = hashlib.sha256(data.new_password.encode()).hexdigest()
     db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, current_user["id"]))
     db.commit()
     return {"success": True}
@@ -307,7 +307,8 @@ def update_user(
     db: sqlite3.Connection = Depends(get_db),
     current_user: Dict = Depends(get_current_user),
 ):
-    if current_user["id"] != user_id and current_user.get("role_name") != "admin":
+    admin_roles = {"admin", "Администратор", "Директор", "director"}
+    if current_user["id"] != user_id and current_user.get("role_name") not in admin_roles:
         raise HTTPException(status_code=403, detail="Нет прав")
     fields = {k: v for k, v in data.model_dump().items() if v is not None}
     if not fields:
@@ -539,14 +540,20 @@ def create_maintenance(
     return r
 
 
+class MaintenanceUpdate(BaseModel):
+    status: Optional[str] = None
+    actual_cost: Optional[float] = None
+    completed_at: Optional[str] = None
+    assigned_to: Optional[int] = None
+    notes: Optional[str] = None
+
 @app.put("/api/maintenance/{maintenance_id}", tags=["maintenance"])
 def update_maintenance(
-    maintenance_id: int, data: dict,
+    maintenance_id: int, data: MaintenanceUpdate,
     db: sqlite3.Connection = Depends(get_db),
     current_user: Dict = Depends(get_current_user),
 ):
-    allowed = {"status", "actual_cost", "completed_date", "assigned_to", "notes"}
-    fields = {k: v for k, v in data.items() if k in allowed and v is not None}
+    fields = {k: v for k, v in data.model_dump().items() if v is not None}
     if not fields:
         raise HTTPException(status_code=400, detail="Нет данных")
     sets = ", ".join(f"{k} = ?" for k in fields)
@@ -575,7 +582,7 @@ def get_parts(
     if low_stock:
         sql += " AND p.quantity <= p.min_quantity"
     sql += f" ORDER BY p.name LIMIT {limit} OFFSET {skip}"
-    return db_fetchall(db, sql)
+    return db_fetchall(db, sql, [])
 
 
 @app.get("/api/parts/{part_id}", tags=["parts"])
