@@ -1,0 +1,10 @@
+# Carvix AutoManager - Requirements
+# Установка: pip install -r requirements.txt
+
+# Обязательные зависимости
+PyQt6>=6.0.0
+
+# Опциональные зависимости (для графиков и экспорта)
+matplotlib>=3.5.0
+pandas>=1.3.0
+reportlab>=3.6.0
