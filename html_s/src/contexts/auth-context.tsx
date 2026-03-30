@@ -1,112 +1,94 @@
-'use client';
+﻿'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { DBUser, seedDB, authenticateUser, registerUser, getSessionUser, setSession, clearSession, updateUser, updateUserNotificationPrefs } from '@/lib/db';
-import { UserRole } from '@/types';
+import { auth as apiAuth, setToken, removeToken, ApiUser } from '@/lib/api';
 
 interface AuthContextType {
-  user: DBUser | null;
+  user: ApiUser | null;
   loading: boolean;
-  login: (email: string, password: string) => { success: boolean; error?: string };
-  loginAsRole: (role: UserRole) => void;
-  register: (data: { firstName: string; lastName: string; email: string; phone: string; role: UserRole; password: string }) => { success: boolean; error?: string };
+  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
-  updateProfile: (data: Partial<Omit<DBUser, 'id'>>) => boolean;
-  updateNotifPrefs: (prefs: DBUser['notificationPrefs']) => void;
-  changePassword: (currentPassword: string, newPassword: string) => { success: boolean; error?: string };
+  updateProfile: (data: Partial<ApiUser>) => void;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<DBUser | null>(null);
+  const [user, setUser] = useState<ApiUser | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const me = await apiAuth.me();
+      setUser(me);
+    } catch {
+      removeToken();
+      setUser(null);
+    }
+  }, []);
+
   useEffect(() => {
-    seedDB();
-    const sessionUser = getSessionUser();
-    setUser(sessionUser);
-    setLoading(false);
-  }, []);
+    const token = typeof window !== 'undefined' ? localStorage.getItem('carvix_token') : null;
+    if (token) {
+      refreshUser().finally(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+  }, [refreshUser]);
 
-  const login = useCallback((email: string, password: string) => {
-    const found = authenticateUser(email, password);
-    if (!found) return { success: false, error: 'auth.error.invalid' };
-    setSession(found.id);
-    setUser(found);
-    return { success: true };
-  }, []);
+  const login = useCallback(async (username: string, password: string) => {
+    try {
+      const res = await apiAuth.login(username, password);
+      setToken(res.access_token);
+      setUser(res.user);
 
-  const loginAsRole = useCallback((role: UserRole) => {
-    const emailMap: Record<UserRole, string> = {
-      driver: 'driver@fleet.ru',
-      dispatcher: 'dispatcher@fleet.ru',
-      admin: 'admin@fleet.ru',
-    };
-    const passMap: Record<UserRole, string> = {
-      driver: 'driver123',
-      dispatcher: 'dispatcher123',
-      admin: 'admin123',
-    };
-    const found = authenticateUser(emailMap[role], passMap[role]);
-    if (found) {
-      setSession(found.id);
-      setUser(found);
-      const hrefMap: Record<UserRole, string> = {
-        driver: '/dashboard',
-        dispatcher: '/dispatcher',
-        admin: '/admin',
+      const roleMap: Record<string, string> = {
+        'admin': '/admin',
+        'Администратор': '/admin',
+        'dispatcher': '/dispatcher',
+        'Диспетчер': '/dispatcher',
+        'driver': '/dashboard',
+        'Пользователь': '/dashboard',
+        'mechanic': '/dashboard',
+        'Механик': '/dashboard',
+        'analyst': '/admin',
+        'Аналитик': '/admin',
+        'director': '/admin',
+        'Директор': '/admin',
       };
-      router.push(hrefMap[role]);
+      const href = roleMap[res.user.role_name] || '/dashboard';
+      router.push(href);
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Неверный логин или пароль' };
     }
   }, [router]);
 
-  const register = useCallback((data: { firstName: string; lastName: string; email: string; phone: string; role: UserRole; password: string }) => {
-    const result = registerUser(data);
-    if (result.success && result.user) {
-      setSession(result.user.id);
-      setUser(result.user);
-    }
-    return { success: result.success, error: result.error };
-  }, []);
-
   const logout = useCallback(() => {
-    clearSession();
+    removeToken();
     setUser(null);
     router.push('/login');
   }, [router]);
 
-  const updateProfile = useCallback((data: Partial<Omit<DBUser, 'id'>>) => {
-    if (!user) return false;
-    const updated = updateUser(user.id, data);
-    if (updated) {
-      setUser(updated);
-      return true;
-    }
-    return false;
+  const updateProfile = useCallback((data: Partial<ApiUser>) => {
+    if (user) setUser({ ...user, ...data });
   }, [user]);
 
-  const updateNotifPrefs = useCallback((prefs: DBUser['notificationPrefs']) => {
-    if (!user) return;
-    updateUserNotificationPrefs(user.id, prefs);
-    setUser({ ...user, notificationPrefs: prefs });
-  }, [user]);
-
-  const changePassword = useCallback((currentPassword: string, newPassword: string) => {
-    if (!user) return { success: false, error: 'No user' };
-    if (user.password !== currentPassword) return { success: false, error: 'settings.password.error' };
-    const updated = updateUser(user.id, { password: newPassword });
-    if (updated) {
-      setUser(updated);
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    try {
+      await apiAuth.changePassword(currentPassword, newPassword);
       return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e.message };
     }
-    return { success: false, error: 'Unknown error' };
-  }, [user]);
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginAsRole, register, logout, updateProfile, updateNotifPrefs, changePassword }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateProfile, changePassword, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

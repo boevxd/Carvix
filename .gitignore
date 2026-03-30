@@ -38,8 +38,8 @@ env/
 *.log
 carvix_debug.log
 
-# Database
-*.db
+# Database files
+carvix_database.db
 *.sqlite
 *.sqlite3
 
