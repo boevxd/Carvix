@@ -252,7 +252,7 @@ except ImportError:
 class FirebaseAuth:
     """Firebase Email/Password auth via Identity Toolkit REST API"""
 
-    API_KEY = "AIzaSyDU6Bb_Cd9XHhca1ywioQ_2R3H1zDywM_4"
+    API_KEY = "AIzaSyB1Qcih38nxUyKZsbqgo4o22RmEBDwuINw"
     BASE = "https://identitytoolkit.googleapis.com/v1/accounts"
 
     _ERRORS = {
@@ -303,6 +303,63 @@ class FirebaseAuth:
         if "error" in data:
             raise Exception(cls._translate(data["error"].get("message", "")))
         return data["localId"], data["idToken"]
+
+    @classmethod
+    def sign_in_with_google(cls) -> tuple:
+        """Google OAuth2 sign-in (PKCE, Desktop flow).
+        Возвращает (firebase_uid, email, display_name). При ошибке — Exception.
+        Требует файл oauth_client.json (тип Desktop) из Google Cloud Console.
+        """
+        if not _REQUESTS_AVAILABLE:
+            raise Exception("Библиотека requests не установлена.")
+        try:
+            from google_auth_oauthlib.flow import InstalledAppFlow
+        except ImportError:
+            raise Exception(
+                "Библиотека google-auth-oauthlib не установлена.\n"
+                "Выполните: pip install google-auth-oauthlib"
+            )
+
+        client_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'oauth_client.json')
+        if not os.path.exists(client_file):
+            raise Exception(
+                "Файл oauth_client.json не найден.\n\n"
+                "Как получить:\n"
+                "1. Зайдите в console.cloud.google.com\n"
+                "2. APIs & Services → Credentials\n"
+                "3. Create Credentials → OAuth 2.0 Client ID\n"
+                "4. Тип приложения: Desktop app\n"
+                "5. Скачайте JSON и сохраните как oauth_client.json\n"
+                "   рядом с файлом carvix_app.py"
+            )
+
+        SCOPES = [
+            'openid',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/userinfo.profile',
+        ]
+        flow = InstalledAppFlow.from_client_secrets_file(client_file, SCOPES)
+        credentials = flow.run_local_server(port=0, open_browser=True)
+
+        id_token = credentials.id_token
+        if not id_token:
+            raise Exception("Google не вернул id_token. Попробуйте снова.")
+
+        resp = _requests.post(
+            f"{cls.BASE}:signInWithIdp?key={cls.API_KEY}",
+            json={
+                "requestUri": "http://localhost",
+                "postBody": f"id_token={id_token}&providerId=google.com",
+                "returnSecureToken": True,
+                "returnIdpCredential": True,
+            },
+            timeout=15,
+        )
+        data = resp.json()
+        if "error" in data:
+            raise Exception(cls._translate(data["error"].get("message", "")))
+
+        return data["localId"], data.get("email", ""), data.get("displayName", "")
 
 # =============================================================================
 # ЛОГИРОВАНИЕ
@@ -1259,6 +1316,22 @@ class LoadingSpinner(QWidget):
             painter.drawEllipse(int(x - 3), int(y - 3), 6, 6)
 
 # =============================================================================
+# GOOGLE AUTH THREAD
+# =============================================================================
+
+class GoogleAuthThread(QThread):
+    """Запускает Google OAuth flow в отдельном потоке, чтобы не блокировать UI."""
+    success = pyqtSignal(str, str, str)   # firebase_uid, email, display_name
+    error   = pyqtSignal(str)
+
+    def run(self):
+        try:
+            uid, email, name = FirebaseAuth.sign_in_with_google()
+            self.success.emit(uid, email, name)
+        except Exception as e:
+            self.error.emit(str(e))
+
+# =============================================================================
 # ОКНО АВТОРИЗАЦИИ
 # =============================================================================
 
@@ -1479,6 +1552,37 @@ class LoginWindow(QMainWindow):
         )
         switch.clicked.connect(lambda: self._form_stack.setCurrentIndex(1))
         layout.addWidget(switch)
+        layout.addSpacing(16)
+
+        # Divider
+        div_row = QHBoxLayout()
+        div_row.setSpacing(8)
+        for _ in range(2):
+            line = QFrame()
+            line.setFrameShape(QFrame.Shape.HLine)
+            line.setStyleSheet(f"color: {c['border']}; background: {c['border']};")
+            div_row.addWidget(line, 1)
+        or_lbl = QLabel("или")
+        or_lbl.setStyleSheet(
+            f"color: {c['text_muted']}; font-size: 11px; background: transparent;"
+        )
+        div_row.insertWidget(1, or_lbl)
+        layout.addLayout(div_row)
+        layout.addSpacing(12)
+
+        google_btn = QPushButton("  Войти через Google")
+        google_btn.setFixedHeight(44)
+        google_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        google_btn.setStyleSheet(
+            f"QPushButton {{ background-color: {c['bg_card']};"
+            f" color: {c['text_primary']}; border: 1px solid {c['border']};"
+            f" border-radius: 8px; font-size: 13px; font-weight: 500;"
+            f" padding: 0 16px; text-align: center; }}"
+            f" QPushButton:hover {{ background-color: {c['bg_hover']};"
+            f" border-color: {c.get('accent', '#6366F1')}; }}"
+        )
+        google_btn.clicked.connect(self._start_google_auth)
+        layout.addWidget(google_btn)
         layout.addStretch()
         return w
 
@@ -1591,6 +1695,73 @@ class LoginWindow(QMainWindow):
         finally:
             self.login_button.setEnabled(True)
             self.login_button.setText("Войти")
+
+    def _start_google_auth(self):
+        """Запускает Google OAuth flow в отдельном потоке."""
+        self._google_thread = GoogleAuthThread()
+        self._google_thread.success.connect(self._handle_google_auth)
+        self._google_thread.error.connect(
+            lambda msg: QMessageBox.critical(self, "Ошибка Google", msg)
+        )
+        self._google_thread.start()
+
+    def _handle_google_auth(self, firebase_uid: str, email: str, display_name: str):
+        """Вызывается после успешного Google OAuth.
+        Если пользователь уже есть в БД — входит, иначе — регистрирует.
+        """
+        try:
+            user = self.db.execute_one("""
+                SELECT u.*, r.name as role_name, r.permissions
+                FROM users u
+                JOIN roles r ON u.role_id = r.id
+                WHERE u.firebase_uid = ? AND u.is_active = 1
+            """, (firebase_uid,))
+
+            if user:
+                # Уже зарегистрирован — просто входим
+                self.db.execute_update(
+                    "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
+                    (dict(user)['id'],)
+                )
+                self.login_successful.emit(dict(user))
+                self.close()
+                return
+
+            # Новый пользователь — авторегистрация
+            users_count = self.db.execute_one("SELECT COUNT(*) FROM users")[0]
+            role_name = 'Администратор' if users_count == 0 else 'Пользователь'
+            role = self.db.execute_one(
+                "SELECT id FROM roles WHERE name = ?", (role_name,)
+            )
+            if not role:
+                QMessageBox.critical(self, "Ошибка", "Роли не найдены в БД.")
+                return
+
+            full_name = display_name or email.split('@')[0]
+            self.db.execute_insert("""
+                INSERT INTO users
+                  (username, password_hash, firebase_uid, full_name, email, role_id, is_active)
+                VALUES (?, '', ?, ?, ?, ?, 1)
+            """, (email, firebase_uid, full_name, email, role['id']))
+
+            # Загружаем только что созданного пользователя
+            user = self.db.execute_one("""
+                SELECT u.*, r.name as role_name, r.permissions
+                FROM users u
+                JOIN roles r ON u.role_id = r.id
+                WHERE u.firebase_uid = ?
+            """, (firebase_uid,))
+
+            QMessageBox.information(
+                self, "Аккаунт создан",
+                f"Добро пожаловать, {full_name}!\nРоль: {role_name}"
+            )
+            self.login_successful.emit(dict(user))
+            self.close()
+
+        except Exception as e:
+            logger.error(f"Google auth handler error: {e}")
+            QMessageBox.critical(self, "Ошибка", str(e))
 
     def _handle_register(self):
         full_name = self.reg_name_input.text().strip()
