@@ -22,7 +22,7 @@ from passlib.context import CryptContext
 # =============================================================================
 
 DB_NAME = "carvix_database.db"
-SECRET_KEY = "carvix-secret-key-2024-fleet-manager"
+SECRET_KEY = os.getenv("CARVIX_SECRET_KEY", "carvix-secret-key-2024-fleet-manager")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 часа
 
@@ -44,7 +44,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "*"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -313,8 +313,13 @@ def update_user(
     fields = {k: v for k, v in data.model_dump().items() if v is not None}
     if not fields:
         raise HTTPException(status_code=400, detail="Нет данных для обновления")
-    sets = ", ".join(f"{k} = ?" for k in fields)
-    db.execute(f"UPDATE users SET {sets} WHERE id = ?", (*fields.values(), user_id))
+    # Whitelist allowed columns to prevent SQL injection
+    allowed_cols = {"full_name", "email", "phone", "department", "is_active"}
+    safe_fields = {k: v for k, v in fields.items() if k in allowed_cols}
+    if not safe_fields:
+        raise HTTPException(status_code=400, detail="Нет допустимых полей для обновления")
+    sets = ", ".join(f"{k} = ?" for k in safe_fields)
+    db.execute(f"UPDATE users SET {sets} WHERE id = ?", (*safe_fields.values(), user_id))
     db.commit()
     return get_user(user_id, db, current_user)
 
@@ -372,8 +377,13 @@ def update_vehicle(
     fields = {k: v for k, v in data.model_dump().items() if v is not None}
     if not fields:
         raise HTTPException(status_code=400, detail="Нет данных")
-    sets = ", ".join(f"{k} = ?" for k in fields)
-    db.execute(f"UPDATE vehicles SET {sets} WHERE id = ?", (*fields.values(), vehicle_id))
+    # Whitelist allowed columns
+    allowed_cols = {"brand", "model", "mileage", "status", "department", "next_maintenance", "notes"}
+    safe_fields = {k: v for k, v in fields.items() if k in allowed_cols}
+    if not safe_fields:
+        raise HTTPException(status_code=400, detail="Нет допустимых полей")
+    sets = ", ".join(f"{k} = ?" for k in safe_fields)
+    db.execute(f"UPDATE vehicles SET {sets} WHERE id = ?", (*safe_fields.values(), vehicle_id))
     db.commit()
     return get_vehicle(vehicle_id, db, current_user)
 
@@ -478,8 +488,13 @@ def update_request(
     fields = {k: v for k, v in data.model_dump().items() if v is not None}
     if not fields:
         raise HTTPException(status_code=400, detail="Нет данных")
-    sets = ", ".join(f"{k} = ?" for k in fields)
-    db.execute(f"UPDATE repair_requests SET {sets} WHERE id = ?", (*fields.values(), request_id))
+    # Whitelist allowed columns
+    allowed_cols = {"status", "priority", "assigned_to", "estimated_cost", "actual_cost", "notes"}
+    safe_fields = {k: v for k, v in fields.items() if k in allowed_cols}
+    if not safe_fields:
+        raise HTTPException(status_code=400, detail="Нет допустимых полей")
+    sets = ", ".join(f"{k} = ?" for k in safe_fields)
+    db.execute(f"UPDATE repair_requests SET {sets} WHERE id = ?", (*safe_fields.values(), request_id))
     db.commit()
     return get_request(request_id, db, current_user)
 
@@ -556,8 +571,13 @@ def update_maintenance(
     fields = {k: v for k, v in data.model_dump().items() if v is not None}
     if not fields:
         raise HTTPException(status_code=400, detail="Нет данных")
-    sets = ", ".join(f"{k} = ?" for k in fields)
-    db.execute(f"UPDATE maintenance_requests SET {sets} WHERE id = ?", (*fields.values(), maintenance_id))
+    # Whitelist allowed columns
+    allowed_cols = {"status", "actual_cost", "completed_at", "assigned_to", "notes"}
+    safe_fields = {k: v for k, v in fields.items() if k in allowed_cols}
+    if not safe_fields:
+        raise HTTPException(status_code=400, detail="Нет допустимых полей")
+    sets = ", ".join(f"{k} = ?" for k in safe_fields)
+    db.execute(f"UPDATE maintenance_requests SET {sets} WHERE id = ?", (*safe_fields.values(), maintenance_id))
     db.commit()
     return db_fetchone(db, "SELECT * FROM maintenance_requests WHERE id = ?", (maintenance_id,))
 
@@ -668,11 +688,15 @@ def update_settings(
 
     if existing:
         if fields:
-            sets = ", ".join(f"{k} = ?" for k in fields)
-            db.execute(
-                f"UPDATE user_settings SET {sets}, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?",
-                (*fields.values(), current_user["id"])
-            )
+            # Whitelist allowed columns
+            allowed_cols = {"theme", "language", "notifications_enabled", "email_notifications", "auto_refresh"}
+            safe_fields = {k: v for k, v in fields.items() if k in allowed_cols}
+            if safe_fields:
+                sets = ", ".join(f"{k} = ?" for k in safe_fields)
+                db.execute(
+                    f"UPDATE user_settings SET {sets}, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?",
+                    (*safe_fields.values(), current_user["id"])
+                )
     else:
         db.execute(
             "INSERT INTO user_settings (user_id, theme) VALUES (?, ?)",
