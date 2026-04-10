@@ -1796,8 +1796,10 @@ class LoginWindow(QMainWindow):
         self.setFixedSize(860, 580)
         
         # Устанавливаем иконку окна
-        if os.path.exists('img.png'):
-            self.setWindowIcon(QIcon('img.png'))
+        for icon_file in ['avatarka.png', 'img.png']:
+            if os.path.exists(icon_file):
+                self.setWindowIcon(QIcon(icon_file))
+                break
         
         self.setStyleSheet(self._get_login_stylesheet())
         self._setup_ui()
@@ -2303,8 +2305,10 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1400, 900)
         
         # Устанавливаем иконку окна
-        if os.path.exists('img.png'):
-            self.setWindowIcon(QIcon('img.png'))
+        for icon_file in ['avatarka.png', 'img.png']:
+            if os.path.exists(icon_file):
+                self.setWindowIcon(QIcon(icon_file))
+                break
         
         self.setStyleSheet(Styles.get_main_stylesheet())
         self._setup_ui()
