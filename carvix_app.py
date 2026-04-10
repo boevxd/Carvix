@@ -855,14 +855,14 @@ class Styles:
         c = Config.COLORS
         return f"""
         QMainWindow {{ background-color: {c['bg_primary']}; }}
-        QWidget {{ background-color: {c['bg_primary']}; color: {c['text_primary']}; font-family: 'Segoe UI', 'Arial', sans-serif; font-size: 16px; }}
+        QWidget {{ background-color: {c['bg_primary']}; color: {c['text_primary']}; font-family: 'Segoe UI', 'San Francisco', 'Helvetica Neue', 'Arial', sans-serif; font-size: 15px; line-height: 1.6; }}
         QFrame {{ background-color: {c['bg_card']}; border-radius: 12px; border: 1px solid {c['border']}; }}
-        QFrame#card {{ background-color: {c['bg_card']}; border-radius: 16px; border: 1px solid {c['border']}; padding: 20px; }}
+        QFrame#card {{ background-color: {c['bg_card']}; border-radius: 18px; border: 1px solid {c['border']}; padding: 28px; margin: 8px; }}
         QLabel {{ color: {c['text_primary']}; background: transparent; border: none; }}
-        QLabel#title {{ font-size: 32px; font-weight: 700; color: {c['text_primary']}; letter-spacing: -0.5px; }}
-        QLabel#subtitle {{ font-size: 18px; color: {c['text_secondary']}; font-weight: 500; }}
+        QLabel#title {{ font-size: 36px; font-weight: 700; color: {c['text_primary']}; letter-spacing: -1px; margin-bottom: 8px; }}
+        QLabel#subtitle {{ font-size: 17px; color: {c['text_secondary']}; font-weight: 500; margin-bottom: 24px; line-height: 1.5; }}
         QLabel#accent {{ color: {c['accent_cyan']}; font-weight: 600; }}
-        QPushButton {{ background-color: {c['accent_cyan']}; color: #000000; border: none; border-radius: 12px; padding: 14px 32px; min-height: 48px; font-weight: 600; font-size: 16px; }}
+        QPushButton {{ background-color: {c['accent_cyan']}; color: #000000; border: none; border-radius: 14px; padding: 16px 36px; min-height: 52px; font-weight: 600; font-size: 15px; letter-spacing: 0.3px; }}
         QPushButton:hover {{ background-color: #00DDDD; }}
         QPushButton:pressed {{ background-color: #00BBBB; }}
         QPushButton:focus {{ outline: none; }}
@@ -871,19 +871,19 @@ class Styles:
         QPushButton#secondary:hover {{ background-color: {c['bg_hover']}; border-color: {c['accent_cyan']}; }}
         QPushButton#danger {{ background-color: {c['error']}; color: white; }}
         QPushButton#success {{ background-color: {c['success']}; color: white; }}
-        QLineEdit {{ background-color: {c['bg_secondary']}; color: {c['text_primary']}; border: 2px solid {c['border']}; border-radius: 12px; padding: 14px 18px; font-size: 16px; }}
+        QLineEdit {{ background-color: {c['bg_secondary']}; color: {c['text_primary']}; border: 2px solid {c['border']}; border-radius: 14px; padding: 16px 20px; font-size: 15px; min-height: 48px; }}
         QLineEdit:focus {{ border-color: {c['accent_cyan']}; border-width: 2px; }}
         QLineEdit::placeholder {{ color: {c['text_muted']}; }}
-        QComboBox {{ background-color: {c['bg_secondary']}; color: {c['text_primary']}; border: 2px solid {c['border']}; border-radius: 12px; padding: 12px 16px; min-width: 180px; font-size: 16px; }}
+        QComboBox {{ background-color: {c['bg_secondary']}; color: {c['text_primary']}; border: 2px solid {c['border']}; border-radius: 14px; padding: 14px 18px; min-width: 200px; min-height: 48px; font-size: 15px; }}
         QComboBox:hover {{ border-color: {c['accent_cyan']}; }}
         QComboBox::drop-down {{ border: none; width: 35px; }}
         QComboBox QAbstractItemView {{ background-color: {c['bg_card']}; color: {c['text_primary']}; border: 2px solid {c['border']}; selection-background-color: {c['accent_cyan']}; selection-color: #000000; padding: 8px; }}
-        QTextEdit {{ background-color: {c['bg_secondary']}; color: {c['text_primary']}; border: 2px solid {c['border']}; border-radius: 12px; padding: 14px; font-size: 16px; }}
+        QTextEdit {{ background-color: {c['bg_secondary']}; color: {c['text_primary']}; border: 2px solid {c['border']}; border-radius: 14px; padding: 18px; font-size: 15px; line-height: 1.7; }}
         QTextEdit:focus {{ border-color: {c['accent_cyan']}; }}
         QTableWidget {{ background-color: {c['bg_card']}; color: {c['text_primary']}; border: 1px solid {c['border']}; border-radius: 14px; gridline-color: {c['border']}; selection-background-color: {c['accent_purple']}; selection-color: {c['text_primary']}; alternate-background-color: {c['bg_secondary']}; }}
-        QTableWidget::item {{ padding: 14px 18px; border-bottom: 1px solid {c['border']}; font-size: 15px; }}
+        QTableWidget::item {{ padding: 18px 22px; border-bottom: 1px solid {c['border']}; font-size: 15px; min-height: 56px; }}
         QTableWidget::item:selected {{ background-color: {c['accent_purple']}; color: {c['text_primary']}; }}
-        QHeaderView::section {{ background-color: {c['bg_secondary']}; color: {c['text_secondary']}; padding: 14px 18px; border: none; border-bottom: 2px solid {c['border']}; font-weight: 600; font-size: 13px; }}
+        QHeaderView::section {{ background-color: {c['bg_secondary']}; color: {c['text_secondary']}; padding: 18px 22px; border: none; border-bottom: 2px solid {c['border']}; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }}
         QScrollBar:vertical {{ background-color: {c['bg_secondary']}; width: 12px; margin: 0; border-radius: 6px; }}
         QScrollBar::handle:vertical {{ background-color: {c['border']}; border-radius: 6px; min-height: 40px; }}
         QScrollBar::handle:vertical:hover {{ background-color: {c['accent_cyan']}; }}
@@ -897,7 +897,7 @@ class Styles:
         QGroupBox {{ background-color: {c['bg_card']}; color: {c['text_primary']}; border: 1px solid {c['border']}; border-radius: 14px; margin-top: 15px; padding-top: 15px; font-weight: 600; }}
         QGroupBox::title {{ subcontrol-origin: margin; left: 15px; padding: 0 10px; color: {c['accent_cyan']}; }}
         QTabWidget::pane {{ background-color: {c['bg_card']}; border: 1px solid {c['border']}; border-radius: 14px; top: -1px; }}
-        QTabBar::tab {{ background-color: {c['bg_secondary']}; color: {c['text_secondary']}; padding: 12px 28px; border: 1px solid {c['border']}; border-bottom: none; border-radius: 10px 10px 0 0; margin-right: 4px; font-weight: 600; font-size: 15px; }}
+        QTabBar::tab {{ background-color: {c['bg_secondary']}; color: {c['text_secondary']}; padding: 14px 32px; border: 1px solid {c['border']}; border-bottom: none; border-radius: 12px 12px 0 0; margin-right: 6px; font-weight: 600; font-size: 15px; min-height: 48px; }}
         QTabBar::tab:selected {{ background-color: {c['accent_purple']}; color: {c['text_primary']}; border-color: {c['accent_purple']}; }}
         QTabBar::tab:hover:!selected {{ background-color: {c['bg_hover']}; color: {c['text_primary']}; }}
         QMenu {{ background-color: {c['bg_card']}; color: {c['text_primary']}; border: 1px solid {c['border']}; border-radius: 12px; padding: 8px; }}
@@ -929,17 +929,17 @@ class Card(QFrame):
     def _setup_shadow(self):
         """Мягкая тень в стиле Apple"""
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(12)
-        shadow.setColor(QColor(0, 0, 0, 15))  # Очень мягкая
-        shadow.setOffset(0, 2)
+        shadow.setBlurRadius(20)
+        shadow.setColor(QColor(0, 0, 0, 25))  # Более заметная тень
+        shadow.setOffset(0, 4)
         self.setGraphicsEffect(shadow)
 
     def enterEvent(self, event):
         if self.clickable:
             shadow = self.graphicsEffect()
             if shadow:
-                shadow.setBlurRadius(16)
-                shadow.setColor(QColor(0, 122, 255, 25))  # Мягкий синий
+                shadow.setBlurRadius(28)
+                shadow.setColor(QColor(0, 255, 255, 40))  # Cyan glow
         super().enterEvent(event)
 
     def leaveEvent(self, event):
@@ -955,22 +955,22 @@ class MetricCard(Card):
 
     def _setup_ui(self, title, value, subtitle, icon):
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(14)
+        layout.setContentsMargins(28, 28, 28, 28)
         if icon:
             icon_label = QLabel(icon)
-            icon_label.setStyleSheet(f"font-size: 24px; color: {self.color};")
+            icon_label.setStyleSheet(f"font-size: 32px; color: {self.color};")
             layout.addWidget(icon_label)
         title_label = QLabel(title)
-        title_label.setStyleSheet(f"color: {Config.COLORS['text_secondary']}; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; background: transparent;")
+        title_label.setStyleSheet(f"color: {Config.COLORS['text_secondary']}; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: transparent; margin-top: 8px;")
         layout.addWidget(title_label)
         value_label = QLabel(value)
-        value_label.setStyleSheet(f"color: {Config.COLORS['text_primary']}; font-size: 34px; font-weight: 600; letter-spacing: -1px; background: transparent;")
+        value_label.setStyleSheet(f"color: {Config.COLORS['text_primary']}; font-size: 42px; font-weight: 700; letter-spacing: -1.5px; background: transparent; margin-top: 4px;")
         layout.addWidget(value_label)
         self.value_label = value_label
         if subtitle:
             sub_label = QLabel(subtitle)
-            sub_label.setStyleSheet(f"color: {Config.COLORS['text_muted']}; font-size: 11px; background: transparent;")
+            sub_label.setStyleSheet(f"color: {Config.COLORS['text_muted']}; font-size: 13px; background: transparent; margin-top: 6px;")
             layout.addWidget(sub_label)
         layout.addStretch()
 
@@ -986,12 +986,14 @@ class StatusBadge(QLabel):
     def set_status(self, status):
         color = Config.STATUS_COLORS.get(status, Config.COLORS['text_secondary'])
         self.setStyleSheet(f"""
-            background-color: {color}15;
+            background-color: {color}20;
             color: {color};
-            border-radius: 6px;
-            padding: 4px 12px;
-            font-size: 12px;
-            font-weight: 500;
+            border: 1px solid {color}40;
+            border-radius: 8px;
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
         """)
         self.setText(status)
 
@@ -1004,12 +1006,14 @@ class PriorityBadge(QLabel):
     def set_priority(self, priority):
         color = Config.PRIORITY_COLORS.get(priority, Config.COLORS['text_secondary'])
         self.setStyleSheet(f"""
-            background-color: {color}15;
+            background-color: {color}20;
             color: {color};
-            border-radius: 6px;
-            padding: 4px 12px;
-            font-size: 12px;
-            font-weight: 500;
+            border: 1px solid {color}40;
+            border-radius: 8px;
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
         """)
         self.setText(priority)
 
@@ -1025,9 +1029,9 @@ class SidebarButton(QPushButton):
     def _setup_style(self):
         c = Config.COLORS
         self.setStyleSheet(f"""
-            QPushButton {{ background-color: transparent; color: {c['text_secondary']}; border: none; border-radius: 12px; padding: 14px 18px; text-align: left; font-size: 16px; font-weight: 600; }}
+            QPushButton {{ background-color: transparent; color: {c['text_secondary']}; border: none; border-radius: 14px; padding: 16px 22px; text-align: left; font-size: 15px; font-weight: 600; min-height: 52px; }}
             QPushButton:hover {{ background-color: {c['bg_hover']}; color: {c['text_primary']}; }}
-            QPushButton:checked {{ background-color: {c['accent_purple']}; color: {c['text_primary']}; }}
+            QPushButton:checked {{ background-color: {c['accent_purple']}; color: {c['text_primary']}; box-shadow: 0 4px 12px {c['accent_purple']}40; }}
         """)
 
     def mousePressEvent(self, event):
@@ -1040,8 +1044,8 @@ class SearchBox(QLineEdit):
         self.setPlaceholderText(f"🔍 {placeholder}")
         self.setClearButtonEnabled(True)
         self.setStyleSheet(f"""
-            QLineEdit {{ background-color: {Config.COLORS['bg_secondary']}; border: 1px solid {Config.COLORS['border']}; border-radius: 10px; padding: 8px 16px; font-size: 15px; }}
-            QLineEdit:focus {{ border-color: {Config.COLORS['accent_cyan']}; border-width: 2px; }}
+            QLineEdit {{ background-color: {Config.COLORS['bg_secondary']}; border: 2px solid {Config.COLORS['border']}; border-radius: 14px; padding: 14px 20px; font-size: 15px; min-height: 48px; }}
+            QLineEdit:focus {{ border-color: {Config.COLORS['accent_cyan']}; }}
         """)
 
 class LoadingSpinner(QWidget):
