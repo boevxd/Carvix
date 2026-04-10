@@ -423,6 +423,7 @@ class Database:
         self.seed_initial_data()
         self._clear_local_auth_users()
         self._ensure_dev_users()
+        self._ensure_demo_data()
 
     def connect(self):
         try:
@@ -637,16 +638,11 @@ class Database:
                 ip_address TEXT,
                 FOREIGN KEY (performed_by) REFERENCES users(id)
             )""",
-            """CREATE TABLE IF NOT EXISTS notifications (
+            """CREATE TABLE IF NOT EXISTS user_feedback (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                title TEXT NOT NULL,
-                message TEXT NOT NULL,
-                type TEXT DEFAULT 'info',
-                is_read INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                read_at TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id)
+                user_id INTEGER,
+                message TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )""",
             """CREATE TABLE IF NOT EXISTS user_settings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -710,14 +706,19 @@ class Database:
         except Exception:
             pass  # Колонка уже существует
 
+    @staticmethod
+    def _dev_hash(pwd: str) -> str:
+        """Lightweight hash for dev-only accounts (no bcrypt dependency)."""
+        import hashlib, hmac
+        return 'DEV:' + hmac.new(b'carvix-dev', pwd.encode(), hashlib.sha256).hexdigest()
+
+    @staticmethod
+    def _dev_verify(pwd: str, stored: str) -> bool:
+        import hashlib, hmac
+        return stored == 'DEV:' + hmac.new(b'carvix-dev', pwd.encode(), hashlib.sha256).hexdigest()
+
     def _ensure_dev_users(self):
         """Гарантирует наличие dev-аккаунтов в любой (в т.ч. уже существующей) БД."""
-        try:
-            from passlib.context import CryptContext as _CC
-            _crypt = _CC(schemes=['bcrypt'], deprecated='auto')
-        except ImportError:
-            _crypt = None
-
         dev_users = [
             ('admin',       'Администратор Системы', 'admin@carvix.ru',    'Admin123!',   'Администратор'),
             ('director',    'Директор Компании',     'director@carvix.ru', 'Dir123!',     'Директор'),
@@ -732,7 +733,6 @@ class Database:
                 role_row = self.execute_one("SELECT id FROM roles WHERE name = ?", (role_name,))
                 if not role_row:
                     continue
-                ph = _crypt.hash(pwd) if _crypt else pwd
                 fuid = f'DEV_LOCAL_{uname}'
                 exists = self.execute_one(
                     "SELECT id FROM users WHERE firebase_uid = ?", (fuid,)
@@ -742,11 +742,193 @@ class Database:
                         INSERT OR IGNORE INTO users
                             (username, full_name, email, password_hash, firebase_uid, role_id, is_active)
                         VALUES (?, ?, ?, ?, ?, ?, 1)
-                    """, (uname, full_name, email, ph, fuid, role_row['id']))
+                    """, (uname, full_name, email, self._dev_hash(pwd), fuid, role_row['id']))
+                else:
+                    # Re-hash if stored hash is not in DEV: format (migration from bcrypt)
+                    stored = self.execute_one("SELECT password_hash FROM users WHERE firebase_uid=?", (fuid,))
+                    if stored and not stored['password_hash'].startswith('DEV:'):
+                        self.cursor.execute(
+                            "UPDATE users SET password_hash=? WHERE firebase_uid=?",
+                            (self._dev_hash(pwd), fuid)
+                        )
             self.connection.commit()
             logger.info("Dev users ensured")
         except Exception as e:
             logger.warning(f"_ensure_dev_users error: {e}")
+
+    def _ensure_demo_data(self):
+        """Назначает заявки, ТО и уведомления dev-пользователям для демонстрации ролей.
+        Запускается при каждом старте — идемпотентен (не дублирует уже назначенные записи).
+        """
+        import random, datetime as _dt
+        random.seed(42)
+
+        try:
+            # Получаем dev-пользователей
+            users = {
+                r['username']: dict(r)
+                for r in self.execute(
+                    "SELECT id, username, role_id FROM users WHERE firebase_uid LIKE 'DEV_LOCAL_%'"
+                )
+            }
+            if not users:
+                return
+
+            uid_admin    = users.get('admin',      {}).get('id')
+            uid_director = users.get('director',   {}).get('id')
+            uid_chief    = users.get('chief',       {}).get('id')
+            uid_mech     = users.get('mechanic',    {}).get('id')
+            uid_disp     = users.get('dispatcher',  {}).get('id')
+            uid_analyst  = users.get('analyst',     {}).get('id')
+            uid_user     = users.get('user',        {}).get('id')
+
+            vehicles  = [r['id'] for r in self.execute("SELECT id FROM vehicles")]
+            rt_rows   = [r['id'] for r in self.execute("SELECT id FROM repair_types")]
+            dc_rows   = [r['id'] for r in self.execute("SELECT id FROM defect_categories")]
+            mt_rows   = [r['id'] for r in self.execute("SELECT id FROM maintenance_types")]
+
+            if not vehicles or not rt_rows:
+                return
+
+            # ── 1. Назначаем существующие NULL-заявки на ремонт ─────────────
+            null_reqs = self.execute(
+                "SELECT id FROM repair_requests WHERE created_by IS NULL ORDER BY id"
+            )
+            assignments = [
+                # (created_by, assigned_to, status)
+                (uid_user,   None,       'Новая'),
+                (uid_user,   None,       'Новая'),
+                (uid_disp,   uid_mech,   'Принята'),
+                (uid_disp,   uid_mech,   'В работе'),
+                (uid_disp,   uid_mech,   'В работе'),
+                (uid_user,   uid_mech,   'В работе'),
+                (uid_disp,   uid_chief,  'Ожидает запчастей'),
+                (uid_user,   uid_chief,  'Ожидает запчастей'),
+                (uid_disp,   uid_mech,   'Выполнена'),
+                (uid_user,   uid_mech,   'Выполнена'),
+                (uid_admin,  uid_mech,   'Закрыта'),
+                (uid_admin,  uid_mech,   'Закрыта'),
+                (uid_disp,   uid_mech,   'Закрыта'),
+                (uid_user,   None,       'Новая'),
+                (uid_user,   uid_chief,  'Принята'),
+                (uid_disp,   uid_mech,   'В работе'),
+                (uid_admin,  uid_chief,  'Выполнена'),
+                (uid_disp,   uid_mech,   'Закрыта'),
+                (uid_user,   None,       'Новая'),
+                (uid_disp,   uid_mech,   'В работе'),
+                (uid_user,   uid_mech,   'В работе'),
+                (uid_disp,   uid_chief,  'Ожидает запчастей'),
+                (uid_admin,  uid_mech,   'Закрыта'),
+                (uid_disp,   uid_mech,   'Принята'),
+                (uid_user,   None,       'Новая'),
+                (uid_disp,   uid_mech,   'В работе'),
+                (uid_admin,  uid_mech,   'Закрыта'),
+                (uid_user,   uid_mech,   'Выполнена'),
+                (uid_disp,   uid_chief,  'В работе'),
+                (uid_admin,  uid_mech,   'Закрыта'),
+            ]
+            for i, req_row in enumerate(null_reqs):
+                if i >= len(assignments):
+                    break
+                cb, at, st = assignments[i]
+                now = _dt.datetime.now()
+                completed_at = (now - _dt.timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d %H:%M:%S') \
+                    if st in ('Выполнена', 'Закрыта') else None
+                closed_at = completed_at if st == 'Закрыта' else None
+                accepted_at = (now - _dt.timedelta(days=random.randint(3, 60))).strftime('%Y-%m-%d %H:%M:%S') \
+                    if st != 'Новая' else None
+                self.cursor.execute("""
+                    UPDATE repair_requests
+                    SET created_by=?, assigned_to=?, status=?,
+                        accepted_at=?, completed_at=?, closed_at=?
+                    WHERE id=?
+                """, (cb, at, st, accepted_at, completed_at, closed_at, req_row['id']))
+
+            # ── 2. Добавляем записи о выполненных работах ─────────────────
+            done_reqs = self.execute(
+                "SELECT id FROM repair_requests WHERE status IN ('Выполнена','Закрыта') AND assigned_to IS NOT NULL LIMIT 15"
+            )
+            work_descs = [
+                "Замена масла и масляного фильтра", "Диагностика электронной системы",
+                "Замена тормозных колодок (передние)", "Ремонт подвески (передняя балка)",
+                "Регулировка развал-схождения", "Замена ремня ГРМ и помпы",
+                "Чистка форсунок топливной системы", "Замена аккумулятора",
+                "Регулировка клапанов двигателя", "Полная компьютерная диагностика",
+            ]
+            parts_rows = self.execute("SELECT id, price FROM parts LIMIT 10")
+            for rr in done_reqs:
+                already = self.execute_one(
+                    "SELECT id FROM request_works WHERE request_id=?", (rr['id'],)
+                )
+                if already:
+                    continue
+                hours = random.uniform(1.5, 12.0)
+                cost  = random.randint(2000, 45000)
+                self.cursor.execute("""
+                    INSERT OR IGNORE INTO request_works
+                        (request_id, description, hours_spent, cost, performed_by, performed_at)
+                    VALUES (?, ?, ?, ?, ?, datetime('now', ?))
+                """, (rr['id'], random.choice(work_descs), round(hours, 1), cost,
+                      uid_mech, f'-{random.randint(1,20)} days'))
+                if parts_rows:
+                    p = random.choice(parts_rows)
+                    self.cursor.execute("""
+                        INSERT OR IGNORE INTO request_parts
+                            (request_id, part_id, quantity, unit_price, total_price)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (rr['id'], p['id'], random.randint(1, 3),
+                          p['price'], p['price'] * random.randint(1, 3)))
+
+            # ── 3. Записи ТО с назначениями ───────────────────────────────
+            maint_exists = self.execute_one("SELECT COUNT(*) FROM maintenance_requests")[0]
+            if maint_exists == 0 and mt_rows:
+                statuses_m = ['Запланировано', 'В процессе', 'Выполнено', 'Запланировано', 'Выполнено']
+                for i, v_id in enumerate(vehicles[:5]):
+                    mt = mt_rows[i % len(mt_rows)]
+                    sched = (_dt.date.today() + _dt.timedelta(days=random.randint(-30, 60))).strftime('%Y-%m-%d')
+                    done_dt = (_dt.datetime.now() - _dt.timedelta(days=random.randint(1, 15))).strftime('%Y-%m-%d %H:%M:%S') \
+                        if statuses_m[i] == 'Выполнено' else None
+                    cost_v = random.randint(5000, 25000) if done_dt else None
+                    req_num = f'TO-{_dt.datetime.now().strftime("%Y%m")}-{i+1:04d}'
+                    self.cursor.execute("""
+                        INSERT OR IGNORE INTO maintenance_requests
+                            (request_number, vehicle_id, maintenance_type_id, status,
+                             scheduled_date, completed_at, actual_cost,
+                             notes, created_by, assigned_to)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (req_num, v_id, mt, statuses_m[i], sched, done_dt, cost_v,
+                          'Плановое техническое обслуживание автомобиля', uid_disp, uid_mech))
+
+            # ── 4. Уведомления для разных ролей ───────────────────────────
+            notif_exists = self.execute_one("SELECT COUNT(*) FROM notifications")[0]
+            if notif_exists == 0:
+                notifs = [
+                    (uid_admin,    'Новая заявка на ремонт',    'Создана заявка №1: Не заводится двигатель',  'info',    0),
+                    (uid_admin,    'Пользователь зарегистрирован', 'Новый пользователь: mechanic@carvix.ru', 'success', 0),
+                    (uid_chief,    'Назначена заявка',           'Заявка №3 назначена вам на выполнение',      'info',    0),
+                    (uid_chief,    'Срочная заявка!',            'Критическая неисправность — заявка №7',      'warning', 0),
+                    (uid_mech,     'Новое задание',              'Вам назначена заявка №3 на диагностику',     'info',    0),
+                    (uid_mech,     'Запчасти получены',          'Заявка №7 — запчасти поступили на склад',    'success', 0),
+                    (uid_mech,     'Срок истекает',              'Заявка №5 должна быть выполнена сегодня',    'warning', 0),
+                    (uid_disp,     'Заявка принята',             'Заявка №3 принята главным механиком',        'success', 0),
+                    (uid_disp,     'Запрос на запчасти',         'Запчасти для заявки №7 ожидают одобрения',   'warning', 0),
+                    (uid_user,     'Статус заявки',              'Ваша заявка №1 принята в работу',            'info',    0),
+                    (uid_user,     'Заявка выполнена',           'Ваша заявка №6 успешно выполнена',           'success', 1),
+                    (uid_analyst,  'Отчёт готов',                'Ежемесячный отчёт по затратам доступен',     'info',    0),
+                    (uid_director, 'KPI отчёт',                  'Эффективность ремонтной службы: 87%',        'success', 1),
+                    (uid_director, 'Превышение бюджета',         'Затраты на ремонт превысили план на 12%',    'warning', 0),
+                ]
+                for u_id, title, msg, ntype, is_read in notifs:
+                    if u_id:
+                        self.cursor.execute("""
+                            INSERT INTO notifications (user_id, title, message, type, is_read)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, (u_id, title, msg, ntype, is_read))
+
+            self.connection.commit()
+            logger.info("Demo data ensured (role-based assignments, works, maintenance, notifications)")
+        except Exception as e:
+            logger.warning(f"_ensure_demo_data error: {e}")
 
     def _clear_local_auth_users(self):
         """Удаляет пользователей без firebase_uid (кроме dev-аккаунтов DEV_LOCAL_)."""
@@ -886,32 +1068,7 @@ class Database:
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (part_num, name, name, category, supplier_id, price, qty, min_qty, location))
 
-        # Тестовые пользователи (dev-режим, firebase_uid начинается с DEV_LOCAL_)
-        try:
-            from passlib.context import CryptContext as _CC
-            _crypt = _CC(schemes=['bcrypt'], deprecated='auto')
-        except ImportError:
-            _crypt = None
-
-        dev_users = [
-            ('admin',        'Администратор Системы',  'admin@carvix.ru',      'Admin123!',    'Администратор'),
-            ('director',     'Директор Компании',      'director@carvix.ru',   'Dir123!',      'Директор'),
-            ('chief',        'Главный Механик',        'chief@carvix.ru',      'Chief123!',    'Главный механик'),
-            ('mechanic',     'Механик Тестовый',       'mechanic@carvix.ru',   'Mech123!',     'Механик'),
-            ('dispatcher',   'Диспетчер Тестовый',     'dispatch@carvix.ru',   'Disp123!',     'Диспетчер'),
-            ('analyst',      'Аналитик Тестовый',      'analyst@carvix.ru',    'Analyst123!',  'Аналитик'),
-            ('user',         'Пользователь Тестовый',  'user@carvix.ru',       'User123!',     'Пользователь'),
-        ]
-        for uname, full_name, email, pwd, role_name in dev_users:
-            role_row = self.execute_one("SELECT id FROM roles WHERE name = ?", (role_name,))
-            if not role_row:
-                continue
-            ph = _crypt.hash(pwd) if _crypt else pwd
-            self.cursor.execute("""
-                INSERT OR IGNORE INTO users
-                    (username, full_name, email, password_hash, firebase_uid, role_id, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, 1)
-            """, (uname, full_name, email, ph, f'DEV_LOCAL_{uname}', role_row['id']))
+        # Тестовые пользователи добавляются через _ensure_dev_users() при каждом старте
 
         # Тестовые заявки на ремонт (created_by=NULL — пользователи Firebase создаются позже)
         defect_cats = self.execute("SELECT id, name FROM defect_categories")
@@ -1954,12 +2111,7 @@ class LoginWindow(QMainWindow):
             """, (email,))
             if dev_user:
                 dev_dict = dict(dev_user)
-                try:
-                    from passlib.context import CryptContext as _CC
-                    _crypt = _CC(schemes=['bcrypt'], deprecated='auto')
-                    ok = _crypt.verify(password, dev_dict.get('password_hash', ''))
-                except Exception:
-                    ok = (password == dev_dict.get('password_hash', ''))
+                ok = Database._dev_verify(password, dev_dict.get('password_hash', ''))
                 if ok:
                     self.db.execute_update(
                         "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
