@@ -790,10 +790,13 @@ class Database:
             if not vehicles or not rt_rows:
                 return
 
-            # ── 1. Назначаем существующие NULL-заявки на ремонт ─────────────
-            null_reqs = self.execute(
-                "SELECT id FROM repair_requests WHERE created_by IS NULL ORDER BY id"
-            )
+            # ── 1. Назначаем заявки: NULL или с несуществующим created_by ──
+            null_reqs = self.execute("""
+                SELECT id FROM repair_requests
+                WHERE created_by IS NULL
+                   OR created_by NOT IN (SELECT id FROM users)
+                ORDER BY id
+            """)
             assignments = [
                 # (created_by, assigned_to, status)
                 (uid_user,   None,       'Новая'),
@@ -829,8 +832,9 @@ class Database:
             ]
             for i, req_row in enumerate(null_reqs):
                 if i >= len(assignments):
-                    break
-                cb, at, st = assignments[i]
+                    cb, at, st = uid_admin, uid_mech, 'Закрыта'
+                else:
+                    cb, at, st = assignments[i]
                 now = _dt.datetime.now()
                 completed_at = (now - _dt.timedelta(days=random.randint(1, 30))).strftime('%Y-%m-%d %H:%M:%S') \
                     if st in ('Выполнена', 'Закрыта') else None
@@ -844,7 +848,14 @@ class Database:
                     WHERE id=?
                 """, (cb, at, st, accepted_at, completed_at, closed_at, req_row['id']))
 
-            # ── 2. Добавляем записи о выполненных работах ─────────────────
+            # ── 2. Очищаем устаревшие work-записи с несуществующими авторами
+            self.cursor.execute("""
+                DELETE FROM request_works
+                WHERE performed_by IS NOT NULL
+                  AND performed_by NOT IN (SELECT id FROM users)
+            """)
+
+            # ── 2b. Добавляем записи о выполненных работах ────────────────
             done_reqs = self.execute(
                 "SELECT id FROM repair_requests WHERE status IN ('Выполнена','Закрыта') AND assigned_to IS NOT NULL LIMIT 15"
             )
@@ -880,6 +891,12 @@ class Database:
                           p['price'], p['price'] * random.randint(1, 3)))
 
             # ── 3. Записи ТО с назначениями ───────────────────────────────
+            # Удаляем ТО с несуществующими пользователями, чтобы пересоздать
+            self.cursor.execute("""
+                DELETE FROM maintenance_requests
+                WHERE created_by NOT IN (SELECT id FROM users)
+                   OR (assigned_to IS NOT NULL AND assigned_to NOT IN (SELECT id FROM users))
+            """)
             maint_exists = self.execute_one("SELECT COUNT(*) FROM maintenance_requests")[0]
             if maint_exists == 0 and mt_rows:
                 statuses_m = ['Запланировано', 'В процессе', 'Выполнено', 'Запланировано', 'Выполнено']
