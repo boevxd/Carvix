@@ -86,25 +86,44 @@ class Config:
     APP_VERSION = "1.0.0"
     DB_NAME = "carvix_database.db"
 
-    # Темная палитра как на референсах
+    # Design System: Linear / Vercel / Notion dark
     COLORS = {
-        'bg_primary': '#0F0F0F',          # Очень темный фон
-        'bg_secondary': '#1A1A1A',         # Темный вторичный
-        'bg_card': '#2A2A2A',              # Карточки темные
-        'bg_hover': '#333333',             # Hover state
-        'accent_cyan': '#00FFFF',          # Яркий cyan
-        'accent_pink': '#FF00FF',          # Magenta
-        'accent_purple': '#C77DFF',        # Purple
-        'accent_green': '#00FF88',         # Зеленый
-        'accent_orange': '#FF6B35',        # Оранжевый
-        'accent_yellow': '#FFD700',        # Желтый
-        'text_primary': '#F4F7FF',         # Белый текст
-        'text_secondary': '#A3ACC2',       # Серый текст
-        'text_muted': '#7E879C',           # Приглушенный
-        'border': '#3A3A3A',               # Темная граница
-        'success': '#00FF88',              # Зеленый
-        'error': '#FF3B30',                # Красный
-        'warning': '#FF6B35',              # Оранжевый
+        # Backgrounds
+        'bg_primary':    '#09090F',
+        'bg_secondary':  '#0F0F1A',
+        'bg_card':       '#13131F',
+        'bg_elevated':   '#1A1A2A',
+        'bg_hover':      '#1E1E30',
+        'bg_input':      '#0F0F1A',
+        # Accent — Indigo
+        'accent':        '#6366F1',
+        'accent_light':  '#818CF8',
+        'accent_dark':   '#4F46E5',
+        'accent_glow':   '#6366F125',
+        # Semantic
+        'success':       '#10B981',
+        'success_bg':    '#10B98115',
+        'error':         '#EF4444',
+        'error_bg':      '#EF444415',
+        'warning':       '#F59E0B',
+        'warning_bg':    '#F59E0B15',
+        'info':          '#38BDF8',
+        'info_bg':       '#38BDF815',
+        # Text
+        'text_primary':  '#F1F5F9',
+        'text_secondary':'#8892A4',
+        'text_muted':    '#4B5563',
+        'text_disabled': '#2D3748',
+        # Borders
+        'border':        '#1E1E30',
+        'divider':       '#141422',
+        # Legacy aliases
+        'accent_cyan':   '#6366F1',
+        'accent_pink':   '#EC4899',
+        'accent_purple': '#8B5CF6',
+        'accent_green':  '#10B981',
+        'accent_orange': '#F97316',
+        'accent_yellow': '#F59E0B',
     }
 
     STATUS_NEW = 'Новая'
@@ -115,12 +134,12 @@ class Config:
     STATUS_CLOSED = 'Закрыта'
 
     STATUS_COLORS = {
-        STATUS_NEW: '#00FFFF',           # Cyan
-        STATUS_ACCEPTED: '#B388FF',      # Light purple
-        STATUS_IN_PROGRESS: '#FF6B35',   # Orange
-        STATUS_WAITING_PARTS: '#C77DFF', # Purple
-        STATUS_COMPLETED: '#00FF88',     # Green
-        STATUS_CLOSED: '#6E7681',        # Gray
+        STATUS_NEW:           '#38BDF8',
+        STATUS_ACCEPTED:      '#818CF8',
+        STATUS_IN_PROGRESS:   '#F59E0B',
+        STATUS_WAITING_PARTS: '#A78BFA',
+        STATUS_COMPLETED:     '#10B981',
+        STATUS_CLOSED:        '#4B5563',
     }
 
     PRIORITY_LOW = 'Низкий'
@@ -129,31 +148,44 @@ class Config:
     PRIORITY_CRITICAL = 'Критический'
 
     PRIORITY_COLORS = {
-        PRIORITY_LOW: '#7E879C',         # Gray
-        PRIORITY_MEDIUM: '#00FFFF',      # Cyan
-        PRIORITY_HIGH: '#FF6B35',        # Orange
-        PRIORITY_CRITICAL: '#FF00FF',    # Magenta
+        PRIORITY_LOW:      '#4B5563',
+        PRIORITY_MEDIUM:   '#38BDF8',
+        PRIORITY_HIGH:     '#F59E0B',
+        PRIORITY_CRITICAL: '#EF4444',
     }
 
     # Светлая тема
     COLORS_LIGHT = {
-        'bg_primary': '#FFFFFF',
-        'bg_secondary': '#F5F5F5',
-        'bg_card': '#FAFAFA',
-        'bg_hover': '#E8E8E8',
-        'accent_cyan': '#0091EA',
-        'accent_pink': '#D81B60',
-        'accent_purple': '#7E57C2',
-        'accent_green': '#00C853',
-        'accent_orange': '#FF6D00',
-        'accent_yellow': '#FFC107',
-        'text_primary': '#1A1A1A',
-        'text_secondary': '#616161',
-        'text_muted': '#9E9E9E',
-        'border': '#E0E0E0',
-        'success': '#00C853',
-        'error': '#D32F2F',
-        'warning': '#FF6D00',
+        'bg_primary':    '#FFFFFF',
+        'bg_secondary':  '#F8FAFC',
+        'bg_card':       '#FFFFFF',
+        'bg_elevated':   '#FFFFFF',
+        'bg_hover':      '#F1F5F9',
+        'bg_input':      '#F8FAFC',
+        'accent':        '#6366F1',
+        'accent_light':  '#818CF8',
+        'accent_dark':   '#4F46E5',
+        'accent_glow':   '#6366F115',
+        'success':       '#10B981',
+        'success_bg':    '#10B98110',
+        'error':         '#EF4444',
+        'error_bg':      '#EF444410',
+        'warning':       '#F59E0B',
+        'warning_bg':    '#F59E0B10',
+        'info':          '#0EA5E9',
+        'info_bg':       '#0EA5E910',
+        'text_primary':  '#0F172A',
+        'text_secondary':'#475569',
+        'text_muted':    '#94A3B8',
+        'text_disabled': '#CBD5E1',
+        'border':        '#E2E8F0',
+        'divider':       '#F1F5F9',
+        'accent_cyan':   '#6366F1',
+        'accent_pink':   '#EC4899',
+        'accent_purple': '#8B5CF6',
+        'accent_green':  '#10B981',
+        'accent_orange': '#F97316',
+        'accent_yellow': '#F59E0B',
     }
 
 
@@ -173,25 +205,37 @@ class ThemeManager:
         if theme == 'light':
             Config.COLORS = Config.COLORS_LIGHT.copy()
         else:
-            # Восстанавливаем темную тему
             Config.COLORS = {
-                'bg_primary': '#0F0F0F',
-                'bg_secondary': '#1A1A1A',
-                'bg_card': '#2A2A2A',
-                'bg_hover': '#333333',
-                'accent_cyan': '#00FFFF',
-                'accent_pink': '#FF00FF',
-                'accent_purple': '#C77DFF',
-                'accent_green': '#00FF88',
-                'accent_orange': '#FF6B35',
-                'accent_yellow': '#FFD700',
-                'text_primary': '#F4F7FF',
-                'text_secondary': '#A3ACC2',
-                'text_muted': '#7E879C',
-                'border': '#3A3A3A',
-                'success': '#00FF88',
-                'error': '#FF3B30',
-                'warning': '#FF6B35',
+                'bg_primary':    '#09090F',
+                'bg_secondary':  '#0F0F1A',
+                'bg_card':       '#13131F',
+                'bg_elevated':   '#1A1A2A',
+                'bg_hover':      '#1E1E30',
+                'bg_input':      '#0F0F1A',
+                'accent':        '#6366F1',
+                'accent_light':  '#818CF8',
+                'accent_dark':   '#4F46E5',
+                'accent_glow':   '#6366F125',
+                'success':       '#10B981',
+                'success_bg':    '#10B98115',
+                'error':         '#EF4444',
+                'error_bg':      '#EF444415',
+                'warning':       '#F59E0B',
+                'warning_bg':    '#F59E0B15',
+                'info':          '#38BDF8',
+                'info_bg':       '#38BDF815',
+                'text_primary':  '#F1F5F9',
+                'text_secondary':'#8892A4',
+                'text_muted':    '#4B5563',
+                'text_disabled': '#2D3748',
+                'border':        '#1E1E30',
+                'divider':       '#141422',
+                'accent_cyan':   '#6366F1',
+                'accent_pink':   '#EC4899',
+                'accent_purple': '#8B5CF6',
+                'accent_green':  '#10B981',
+                'accent_orange': '#F97316',
+                'accent_yellow': '#F59E0B',
             }
 
 # =============================================================================
@@ -853,63 +897,96 @@ class Styles:
     @staticmethod
     def get_main_stylesheet():
         c = Config.COLORS
+        accent = c.get('accent', '#6366F1')
+        accent_l = c.get('accent_light', '#818CF8')
+        accent_d = c.get('accent_dark', '#4F46E5')
+        glow = c.get('accent_glow', '#6366F125')
+        bg0 = c['bg_primary']
+        bg1 = c['bg_secondary']
+        bg2 = c['bg_card']
+        bg3 = c.get('bg_elevated', '#1A1A2A')
+        bgh = c['bg_hover']
+        bgi = c.get('bg_input', c['bg_secondary'])
+        tp  = c['text_primary']
+        ts  = c['text_secondary']
+        tm  = c['text_muted']
+        td  = c.get('text_disabled', c['text_muted'])
+        br  = c['border']
+        dv  = c.get('divider', c['border'])
+        ok  = c['success']
+        err = c['error']
+        wrn = c['warning']
         return f"""
-        QMainWindow {{ background-color: {c['bg_primary']}; }}
-        QWidget {{ background-color: {c['bg_primary']}; color: {c['text_primary']}; font-family: 'Segoe UI', 'San Francisco', 'Helvetica Neue', 'Arial', sans-serif; font-size: 15px; line-height: 1.6; }}
-        QFrame {{ background-color: {c['bg_card']}; border-radius: 12px; border: 1px solid {c['border']}; }}
-        QFrame#card {{ background-color: {c['bg_card']}; border-radius: 18px; border: 1px solid {c['border']}; padding: 28px; margin: 8px; }}
-        QLabel {{ color: {c['text_primary']}; background: transparent; border: none; }}
-        QLabel#title {{ font-size: 36px; font-weight: 700; color: {c['text_primary']}; letter-spacing: -1px; margin-bottom: 8px; }}
-        QLabel#subtitle {{ font-size: 17px; color: {c['text_secondary']}; font-weight: 500; margin-bottom: 24px; line-height: 1.5; }}
-        QLabel#accent {{ color: {c['accent_cyan']}; font-weight: 600; }}
-        QPushButton {{ background-color: {c['accent_cyan']}; color: #000000; border: none; border-radius: 14px; padding: 16px 36px; min-height: 52px; font-weight: 600; font-size: 15px; letter-spacing: 0.3px; }}
-        QPushButton:hover {{ background-color: #00DDDD; }}
-        QPushButton:pressed {{ background-color: #00BBBB; }}
-        QPushButton:focus {{ outline: none; }}
-        QPushButton:disabled {{ background-color: {c['bg_hover']}; color: {c['text_muted']}; }}
-        QPushButton#secondary {{ background-color: {c['bg_secondary']}; color: {c['text_primary']}; border: 2px solid {c['border']}; }}
-        QPushButton#secondary:hover {{ background-color: {c['bg_hover']}; border-color: {c['accent_cyan']}; }}
-        QPushButton#danger {{ background-color: {c['error']}; color: white; }}
-        QPushButton#success {{ background-color: {c['success']}; color: white; }}
-        QLineEdit {{ background-color: {c['bg_secondary']}; color: {c['text_primary']}; border: 2px solid {c['border']}; border-radius: 14px; padding: 16px 20px; font-size: 15px; min-height: 48px; }}
-        QLineEdit:focus {{ border-color: {c['accent_cyan']}; border-width: 2px; }}
-        QLineEdit::placeholder {{ color: {c['text_muted']}; }}
-        QComboBox {{ background-color: {c['bg_secondary']}; color: {c['text_primary']}; border: 2px solid {c['border']}; border-radius: 14px; padding: 14px 18px; min-width: 200px; min-height: 48px; font-size: 15px; }}
-        QComboBox:hover {{ border-color: {c['accent_cyan']}; }}
-        QComboBox::drop-down {{ border: none; width: 35px; }}
-        QComboBox QAbstractItemView {{ background-color: {c['bg_card']}; color: {c['text_primary']}; border: 2px solid {c['border']}; selection-background-color: {c['accent_cyan']}; selection-color: #000000; padding: 8px; }}
-        QTextEdit {{ background-color: {c['bg_secondary']}; color: {c['text_primary']}; border: 2px solid {c['border']}; border-radius: 14px; padding: 18px; font-size: 15px; line-height: 1.7; }}
-        QTextEdit:focus {{ border-color: {c['accent_cyan']}; }}
-        QTableWidget {{ background-color: {c['bg_card']}; color: {c['text_primary']}; border: 1px solid {c['border']}; border-radius: 14px; gridline-color: {c['border']}; selection-background-color: {c['accent_purple']}; selection-color: {c['text_primary']}; alternate-background-color: {c['bg_secondary']}; }}
-        QTableWidget::item {{ padding: 18px 22px; border-bottom: 1px solid {c['border']}; font-size: 15px; min-height: 56px; }}
-        QTableWidget::item:selected {{ background-color: {c['accent_purple']}; color: {c['text_primary']}; }}
-        QHeaderView::section {{ background-color: {c['bg_secondary']}; color: {c['text_secondary']}; padding: 18px 22px; border: none; border-bottom: 2px solid {c['border']}; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }}
-        QScrollBar:vertical {{ background-color: {c['bg_secondary']}; width: 12px; margin: 0; border-radius: 6px; }}
-        QScrollBar::handle:vertical {{ background-color: {c['border']}; border-radius: 6px; min-height: 40px; }}
-        QScrollBar::handle:vertical:hover {{ background-color: {c['accent_cyan']}; }}
-        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
-        QDateEdit, QTimeEdit {{ background-color: {c['bg_secondary']}; color: {c['text_primary']}; border: 2px solid {c['border']}; border-radius: 12px; padding: 12px; font-size: 16px; }}
-        QSpinBox, QDoubleSpinBox {{ background-color: {c['bg_secondary']}; color: {c['text_primary']}; border: 2px solid {c['border']}; border-radius: 12px; padding: 12px; font-size: 16px; }}
-        QCheckBox {{ color: {c['text_primary']}; spacing: 10px; font-size: 16px; }}
-        QCheckBox::indicator {{ width: 24px; height: 24px; border-radius: 6px; border: 2px solid {c['border']}; background-color: {c['bg_secondary']}; }}
-        QCheckBox::indicator:checked {{ background-color: {c['accent_cyan']}; border-color: {c['accent_cyan']}; }}
-        QCheckBox::indicator:hover {{ border-color: {c['accent_cyan']}; }}
-        QGroupBox {{ background-color: {c['bg_card']}; color: {c['text_primary']}; border: 1px solid {c['border']}; border-radius: 14px; margin-top: 15px; padding-top: 15px; font-weight: 600; }}
-        QGroupBox::title {{ subcontrol-origin: margin; left: 15px; padding: 0 10px; color: {c['accent_cyan']}; }}
-        QTabWidget::pane {{ background-color: {c['bg_card']}; border: 1px solid {c['border']}; border-radius: 14px; top: -1px; }}
-        QTabBar::tab {{ background-color: {c['bg_secondary']}; color: {c['text_secondary']}; padding: 14px 32px; border: 1px solid {c['border']}; border-bottom: none; border-radius: 12px 12px 0 0; margin-right: 6px; font-weight: 600; font-size: 15px; min-height: 48px; }}
-        QTabBar::tab:selected {{ background-color: {c['accent_purple']}; color: {c['text_primary']}; border-color: {c['accent_purple']}; }}
-        QTabBar::tab:hover:!selected {{ background-color: {c['bg_hover']}; color: {c['text_primary']}; }}
-        QMenu {{ background-color: {c['bg_card']}; color: {c['text_primary']}; border: 1px solid {c['border']}; border-radius: 12px; padding: 8px; }}
-        QMenu::item {{ padding: 10px 25px; border-radius: 6px; }}
-        QMenu::item:selected {{ background-color: {c['accent_purple']}; color: #080A10; }}
-        QProgressBar {{ background-color: {c['bg_secondary']}; border: none; border-radius: 6px; height: 8px; text-align: center; }}
-        QProgressBar::chunk {{ background-color: {c['accent_cyan']}; border-radius: 6px; }}
-        QStatusBar {{ background-color: {c['bg_secondary']}; color: {c['text_secondary']}; border-top: 1px solid {c['border']}; }}
-        QToolBar {{ background-color: {c['bg_secondary']}; border: none; spacing: 10px; padding: 10px; }}
-        QMessageBox {{ background-color: {c['bg_primary']}; }}
-        QMessageBox QPushButton {{ min-width: 80px; }}
-        QDialog {{ background-color: {c['bg_primary']}; }}
+QMainWindow {{ background-color: {bg0}; }}
+QWidget {{ background-color: {bg0}; color: {tp}; font-family: 'Segoe UI', 'Inter', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; font-size: 14px; }}
+QFrame {{ background-color: {bg2}; border-radius: 12px; border: 1px solid {br}; }}
+QFrame#card {{ background-color: {bg2}; border-radius: 16px; border: 1px solid {br}; padding: 24px; }}
+QLabel {{ color: {tp}; background: transparent; border: none; }}
+QLabel#title {{ font-size: 28px; font-weight: 700; color: {tp}; letter-spacing: -0.5px; }}
+QLabel#subtitle {{ font-size: 14px; color: {ts}; font-weight: 400; }}
+QLabel#accent {{ color: {accent_l}; font-weight: 600; }}
+QLabel#sectionHeader {{ font-size: 11px; font-weight: 700; color: {tm}; letter-spacing: 1px; }}
+QPushButton {{ background-color: {accent}; color: #FFFFFF; border: none; border-radius: 10px; padding: 9px 20px; min-height: 38px; font-weight: 600; font-size: 13px; letter-spacing: 0.1px; }}
+QPushButton:hover {{ background-color: {accent_l}; }}
+QPushButton:pressed {{ background-color: {accent_d}; }}
+QPushButton:focus {{ outline: none; border: 2px solid {accent_l}; }}
+QPushButton:disabled {{ background-color: {bgh}; color: {td}; border: none; }}
+QPushButton#secondary {{ background-color: {bg3}; color: {tp}; border: 1px solid {br}; }}
+QPushButton#secondary:hover {{ background-color: {bgh}; border-color: {accent}; color: {accent_l}; }}
+QPushButton#danger {{ background-color: {c.get('error_bg','#EF444415')}; color: {err}; border: 1px solid {err}45; }}
+QPushButton#danger:hover {{ background-color: {err}; color: #fff; border-color: {err}; }}
+QPushButton#success {{ background-color: {c.get('success_bg','#10B98115')}; color: {ok}; border: 1px solid {ok}45; }}
+QPushButton#success:hover {{ background-color: {ok}; color: #fff; border-color: {ok}; }}
+QLineEdit {{ background-color: {bgi}; color: {tp}; border: 1px solid {br}; border-radius: 10px; padding: 9px 14px; font-size: 14px; min-height: 38px; selection-background-color: {accent}; }}
+QLineEdit:focus {{ border-color: {accent}; background-color: {bg2}; }}
+QLineEdit::placeholder {{ color: {tm}; }}
+QComboBox {{ background-color: {bgi}; color: {tp}; border: 1px solid {br}; border-radius: 10px; padding: 9px 14px; min-width: 160px; min-height: 38px; font-size: 14px; }}
+QComboBox:hover {{ border-color: {accent}; }}
+QComboBox:focus {{ border-color: {accent}; }}
+QComboBox::drop-down {{ border: none; width: 28px; }}
+QComboBox QAbstractItemView {{ background-color: {bg3}; color: {tp}; border: 1px solid {br}; border-radius: 10px; selection-background-color: {accent}; selection-color: #fff; padding: 4px; outline: none; }}
+QComboBox QAbstractItemView::item {{ padding: 8px 14px; border-radius: 6px; min-height: 30px; }}
+QTextEdit {{ background-color: {bgi}; color: {tp}; border: 1px solid {br}; border-radius: 10px; padding: 12px; font-size: 14px; }}
+QTextEdit:focus {{ border-color: {accent}; }}
+QTableWidget {{ background-color: {bg2}; color: {tp}; border: 1px solid {br}; border-radius: 12px; gridline-color: {dv}; selection-background-color: {glow}; selection-color: {tp}; alternate-background-color: {bg1}; font-size: 13px; outline: none; }}
+QTableWidget::item {{ padding: 12px 16px; border-bottom: 1px solid {dv}; min-height: 44px; }}
+QTableWidget::item:selected {{ background-color: {glow}; color: {tp}; }}
+QTableWidget::item:hover {{ background-color: {bgh}; }}
+QHeaderView::section {{ background-color: {bg1}; color: {tm}; padding: 11px 16px; border: none; border-bottom: 1px solid {br}; font-weight: 700; font-size: 11px; letter-spacing: 0.8px; }}
+QScrollBar:vertical {{ background-color: transparent; width: 6px; margin: 0; }}
+QScrollBar::handle:vertical {{ background-color: {br}; border-radius: 3px; min-height: 24px; }}
+QScrollBar::handle:vertical:hover {{ background-color: {tm}; }}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
+QScrollBar:horizontal {{ background-color: transparent; height: 6px; margin: 0; }}
+QScrollBar::handle:horizontal {{ background-color: {br}; border-radius: 3px; min-width: 24px; }}
+QScrollBar::handle:horizontal:hover {{ background-color: {tm}; }}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0px; }}
+QDateEdit, QTimeEdit {{ background-color: {bgi}; color: {tp}; border: 1px solid {br}; border-radius: 10px; padding: 9px 14px; font-size: 14px; min-height: 38px; }}
+QDateEdit:focus, QTimeEdit:focus {{ border-color: {accent}; }}
+QSpinBox, QDoubleSpinBox {{ background-color: {bgi}; color: {tp}; border: 1px solid {br}; border-radius: 10px; padding: 9px 14px; font-size: 14px; min-height: 38px; }}
+QSpinBox:focus, QDoubleSpinBox:focus {{ border-color: {accent}; }}
+QCheckBox {{ color: {tp}; spacing: 10px; font-size: 14px; }}
+QCheckBox::indicator {{ width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid {br}; background-color: {bgi}; }}
+QCheckBox::indicator:checked {{ background-color: {accent}; border-color: {accent}; }}
+QCheckBox::indicator:hover {{ border-color: {accent}; }}
+QGroupBox {{ background-color: {bg2}; color: {tp}; border: 1px solid {br}; border-radius: 12px; margin-top: 12px; padding-top: 12px; font-weight: 600; font-size: 13px; }}
+QGroupBox::title {{ subcontrol-origin: margin; left: 14px; padding: 0 8px; color: {ts}; }}
+QTabWidget::pane {{ background-color: {bg2}; border: 1px solid {br}; border-radius: 12px; top: -1px; }}
+QTabBar::tab {{ background-color: transparent; color: {tm}; padding: 10px 20px; border: none; border-bottom: 2px solid transparent; margin-right: 2px; font-weight: 500; font-size: 13px; }}
+QTabBar::tab:selected {{ color: {tp}; border-bottom: 2px solid {accent}; font-weight: 600; }}
+QTabBar::tab:hover:!selected {{ color: {ts}; background-color: {bgh}; border-radius: 6px 6px 0 0; }}
+QMenu {{ background-color: {bg3}; color: {tp}; border: 1px solid {br}; border-radius: 12px; padding: 6px; }}
+QMenu::item {{ padding: 8px 20px; border-radius: 6px; font-size: 13px; }}
+QMenu::item:selected {{ background-color: {accent}; color: #fff; }}
+QMenu::separator {{ height: 1px; background-color: {dv}; margin: 4px 0; }}
+QProgressBar {{ background-color: {bg3}; border: none; border-radius: 3px; height: 5px; font-size: 0px; }}
+QProgressBar::chunk {{ background-color: {accent}; border-radius: 3px; }}
+QStatusBar {{ background-color: {bg1}; color: {tm}; border-top: 1px solid {br}; font-size: 12px; }}
+QToolBar {{ background-color: {bg1}; border: none; spacing: 8px; padding: 8px; }}
+QDialog {{ background-color: {bg0}; }}
+QMessageBox {{ background-color: {bg0}; }}
+QMessageBox QPushButton {{ min-width: 90px; }}
+QToolTip {{ background-color: {bg3}; color: {tp}; border: 1px solid {br}; border-radius: 6px; padding: 5px 10px; font-size: 12px; }}
         """
 
 # =============================================================================
@@ -926,20 +1003,25 @@ class Card(QFrame):
         if clickable:
             self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 
-    def _setup_shadow(self):
-        """Мягкая тень в стиле Apple"""
+    def _setup_shadow(self, hovered=False):
         shadow = QGraphicsDropShadowEffect(self)
-        shadow.setBlurRadius(20)
-        shadow.setColor(QColor(0, 0, 0, 25))  # Более заметная тень
-        shadow.setOffset(0, 4)
+        if hovered:
+            shadow.setBlurRadius(20)
+            shadow.setColor(QColor(99, 102, 241, 50))  # Indigo glow
+            shadow.setOffset(0, 4)
+        else:
+            shadow.setBlurRadius(8)
+            shadow.setColor(QColor(0, 0, 0, 80))
+            shadow.setOffset(0, 2)
         self.setGraphicsEffect(shadow)
 
     def enterEvent(self, event):
         if self.clickable:
             shadow = self.graphicsEffect()
             if shadow:
-                shadow.setBlurRadius(28)
-                shadow.setColor(QColor(0, 255, 255, 40))  # Cyan glow
+                shadow.setBlurRadius(20)
+                shadow.setColor(QColor(99, 102, 241, 50))  # Indigo glow
+                shadow.setOffset(0, 4)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
@@ -954,23 +1036,51 @@ class MetricCard(Card):
         self._setup_ui(title, value, subtitle, icon)
 
     def _setup_ui(self, title, value, subtitle, icon):
+        c = Config.COLORS
+        accent = c.get('accent', '#6366F1')
+        color = self.color
         layout = QVBoxLayout(self)
-        layout.setSpacing(14)
-        layout.setContentsMargins(28, 28, 28, 28)
+        layout.setSpacing(0)
+        layout.setContentsMargins(20, 18, 20, 18)
+        # Icon pill
         if icon:
-            icon_label = QLabel(icon)
-            icon_label.setStyleSheet(f"font-size: 32px; color: {self.color};")
-            layout.addWidget(icon_label)
+            icon_row = QHBoxLayout()
+            icon_row.setContentsMargins(0, 0, 0, 0)
+            icon_lbl = QLabel(icon)
+            icon_lbl.setFixedSize(40, 40)
+            icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            icon_lbl.setStyleSheet(
+                f"font-size: 20px; background-color: {color}20;"
+                f" border: 1px solid {color}35; border-radius: 10px;"
+                f" color: {color}; padding: 0;"
+            )
+            icon_row.addWidget(icon_lbl)
+            icon_row.addStretch()
+            layout.addLayout(icon_row)
+            layout.addSpacing(12)
+        # Title
         title_label = QLabel(title)
-        title_label.setStyleSheet(f"color: {Config.COLORS['text_secondary']}; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: transparent; margin-top: 8px;")
+        title_label.setStyleSheet(
+            f"color: {c['text_muted']}; font-size: 11px; font-weight: 700;"
+            f" letter-spacing: 0.8px; background: transparent;"
+        )
         layout.addWidget(title_label)
+        layout.addSpacing(4)
+        # Value
         value_label = QLabel(value)
-        value_label.setStyleSheet(f"color: {Config.COLORS['text_primary']}; font-size: 42px; font-weight: 700; letter-spacing: -1.5px; background: transparent; margin-top: 4px;")
+        value_label.setStyleSheet(
+            f"color: {c['text_primary']}; font-size: 32px; font-weight: 700;"
+            f" letter-spacing: -1px; background: transparent;"
+        )
         layout.addWidget(value_label)
         self.value_label = value_label
+        # Subtitle
         if subtitle:
+            layout.addSpacing(4)
             sub_label = QLabel(subtitle)
-            sub_label.setStyleSheet(f"color: {Config.COLORS['text_muted']}; font-size: 13px; background: transparent; margin-top: 6px;")
+            sub_label.setStyleSheet(
+                f"color: {c['text_muted']}; font-size: 12px; background: transparent;"
+            )
             layout.addWidget(sub_label)
         layout.addStretch()
 
@@ -984,17 +1094,12 @@ class StatusBadge(QLabel):
         self.set_status(status)
 
     def set_status(self, status):
-        color = Config.STATUS_COLORS.get(status, Config.COLORS['text_secondary'])
-        self.setStyleSheet(f"""
-            background-color: {color}20;
-            color: {color};
-            border: 1px solid {color}40;
-            border-radius: 8px;
-            padding: 6px 16px;
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 0.3px;
-        """)
+        color = Config.STATUS_COLORS.get(status, Config.COLORS['text_muted'])
+        self.setStyleSheet(
+            f"background-color: {color}18; color: {color};"
+            f" border: 1px solid {color}30; border-radius: 20px;"
+            f" padding: 3px 11px; font-size: 12px; font-weight: 600;"
+        )
         self.setText(status)
 
 class PriorityBadge(QLabel):
@@ -1004,17 +1109,12 @@ class PriorityBadge(QLabel):
         self.set_priority(priority)
 
     def set_priority(self, priority):
-        color = Config.PRIORITY_COLORS.get(priority, Config.COLORS['text_secondary'])
-        self.setStyleSheet(f"""
-            background-color: {color}20;
-            color: {color};
-            border: 1px solid {color}40;
-            border-radius: 8px;
-            padding: 6px 16px;
-            font-size: 13px;
-            font-weight: 600;
-            letter-spacing: 0.3px;
-        """)
+        color = Config.PRIORITY_COLORS.get(priority, Config.COLORS['text_muted'])
+        self.setStyleSheet(
+            f"background-color: {color}18; color: {color};"
+            f" border: 1px solid {color}30; border-radius: 20px;"
+            f" padding: 3px 11px; font-size: 12px; font-weight: 600;"
+        )
         self.setText(priority)
 
 class SidebarButton(QPushButton):
@@ -1028,11 +1128,16 @@ class SidebarButton(QPushButton):
 
     def _setup_style(self):
         c = Config.COLORS
-        self.setStyleSheet(f"""
-            QPushButton {{ background-color: transparent; color: {c['text_secondary']}; border: none; border-radius: 14px; padding: 16px 22px; text-align: left; font-size: 15px; font-weight: 600; min-height: 52px; }}
-            QPushButton:hover {{ background-color: {c['bg_hover']}; color: {c['text_primary']}; }}
-            QPushButton:checked {{ background-color: {c['accent_purple']}; color: {c['text_primary']}; box-shadow: 0 4px 12px {c['accent_purple']}40; }}
-        """)
+        accent = c.get('accent', '#6366F1')
+        accent_l = c.get('accent_light', '#818CF8')
+        self.setStyleSheet(
+            f"QPushButton {{ background-color: transparent; color: {c['text_muted']};"
+            f" border: none; border-radius: 8px; padding: 9px 14px;"
+            f" text-align: left; font-size: 14px; font-weight: 500; min-height: 38px; }}"
+            f" QPushButton:hover {{ background-color: {c['bg_hover']}; color: {c['text_secondary']}; }}"
+            f" QPushButton:checked {{ background-color: {accent}18; color: {accent_l};"
+            f" font-weight: 600; border-left: 2px solid {accent}; }}"
+        )
 
     def mousePressEvent(self, event):
         self.clicked_signal.emit()
@@ -1041,12 +1146,16 @@ class SidebarButton(QPushButton):
 class SearchBox(QLineEdit):
     def __init__(self, placeholder="Поиск...", parent=None):
         super().__init__(parent)
-        self.setPlaceholderText(f"🔍 {placeholder}")
+        self.setPlaceholderText(f"  🔍  {placeholder}")
         self.setClearButtonEnabled(True)
-        self.setStyleSheet(f"""
-            QLineEdit {{ background-color: {Config.COLORS['bg_secondary']}; border: 2px solid {Config.COLORS['border']}; border-radius: 14px; padding: 14px 20px; font-size: 15px; min-height: 48px; }}
-            QLineEdit:focus {{ border-color: {Config.COLORS['accent_cyan']}; }}
-        """)
+        c = Config.COLORS
+        accent = c.get('accent', '#6366F1')
+        bgi = c.get('bg_input', c['bg_secondary'])
+        self.setStyleSheet(
+            f"QLineEdit {{ background-color: {bgi}; border: 1px solid {c['border']};"
+            f" border-radius: 10px; padding: 9px 16px; font-size: 14px; min-height: 38px; }}"
+            f" QLineEdit:focus {{ border-color: {accent}; background-color: {c['bg_card']}; }}"
+        )
 
 class LoadingSpinner(QWidget):
     def __init__(self, size=40, parent=None):
@@ -1104,79 +1213,43 @@ class LoginWindow(QMainWindow):
     @staticmethod
     def _get_login_stylesheet():
         c = Config.COLORS
-        return f"""
-        QWidget#loginCentral {{ background-color: {c['bg_primary']}; }}
-        QFrame#loginCard {{
-            background-color: {c['bg_secondary']};
-            border: 2px solid {c['border']};
-            border-radius: 20px;
-        }}
-        QLabel#loginTitle {{
-            font-size: 24px;
-            font-weight: 700;
-            color: {c['text_primary']};
-            letter-spacing: -0.3px;
-        }}
-        QLabel#loginLabel {{
-            color: {c['text_primary']};
-            font-size: 14px;
-            font-weight: 600;
-        }}
-        QLineEdit#loginInput {{
-            background-color: {c['bg_card']};
-            border: 2px solid {c['border']};
-            border-radius: 10px;
-            padding: 12px 16px;
-            font-size: 15px;
-            color: {c['text_primary']};
-        }}
-        QLineEdit#loginInput:focus {{
-            border-color: {c['accent_cyan']};
-            border-width: 2px;
-        }}
-        QPushButton#loginPrimary {{
-            background-color: {c['accent_cyan']};
-            color: #000000;
-            border: none;
-            border-radius: 10px;
-            padding: 12px 24px;
-            font-size: 15px;
-            font-weight: 700;
-            min-height: 48px;
-        }}
-        QPushButton#loginPrimary:hover {{
-            background-color: #00DDDD;
-        }}
-        QPushButton#loginPrimary:pressed {{
-            background-color: #00BBBB;
-        }}
-        """
+        accent = c.get('accent', '#6366F1')
+        accent_l = c.get('accent_light', '#818CF8')
+        accent_d = c.get('accent_dark', '#4F46E5')
+        bgi = c.get('bg_input', c['bg_secondary'])
+        return (
+            f"QWidget#loginCentral {{ background-color: {c['bg_primary']}; }}"
+            f" QFrame#loginCard {{ background-color: {c['bg_card']};"
+            f" border: 1px solid {c['border']}; border-radius: 20px; }}"
+            f" QLabel#loginTitle {{ font-size: 24px; font-weight: 700;"
+            f" color: {c['text_primary']}; letter-spacing: -0.5px; background: transparent; }}"
+            f" QLabel#loginLabel {{ color: {c['text_secondary']}; font-size: 13px;"
+            f" font-weight: 500; background: transparent; }}"
+            f" QLineEdit#loginInput {{ background-color: {bgi}; border: 1px solid {c['border']};"
+            f" border-radius: 10px; padding: 11px 15px; font-size: 14px;"
+            f" color: {c['text_primary']}; min-height: 42px; selection-background-color: {accent}; }}"
+            f" QLineEdit#loginInput:focus {{ border-color: {accent}; background-color: {c['bg_secondary']}; }}"
+            f" QPushButton#loginPrimary {{ background-color: {accent}; color: #FFFFFF;"
+            f" border: none; border-radius: 10px; padding: 12px 24px;"
+            f" font-size: 14px; font-weight: 600; min-height: 44px; }}"
+            f" QPushButton#loginPrimary:hover {{ background-color: {accent_l}; }}"
+            f" QPushButton#loginPrimary:pressed {{ background-color: {accent_d}; }}"
+        )
 
     @staticmethod
     def _get_login_primary_button_stylesheet():
         c = Config.COLORS
-        return f"""
-        QPushButton {{
-            background-color: {c['accent_cyan']};
-            color: #000000;
-            border: none;
-            border-radius: 10px;
-            padding: 12px 24px;
-            font-size: 15px;
-            font-weight: 700;
-            min-height: 48px;
-        }}
-        QPushButton:hover {{
-            background-color: #00DDDD;
-        }}
-        QPushButton:pressed {{
-            background-color: #00BBBB;
-        }}
-        QPushButton:disabled {{
-            background-color: {c['bg_hover']};
-            color: {c['text_muted']};
-        }}
-        """
+        accent = c.get('accent', '#6366F1')
+        accent_l = c.get('accent_light', '#818CF8')
+        accent_d = c.get('accent_dark', '#4F46E5')
+        return (
+            f"QPushButton {{ background-color: {accent}; color: #FFFFFF;"
+            f" border: none; border-radius: 10px; padding: 12px 24px;"
+            f" font-size: 14px; font-weight: 600; min-height: 44px; }}"
+            f" QPushButton:hover {{ background-color: {accent_l}; }}"
+            f" QPushButton:pressed {{ background-color: {accent_d}; }}"
+            f" QPushButton:disabled {{ background-color: {c['bg_hover']}; color: {c['text_muted']}; }}"
+        )
 
     def _center_window(self):
         screen = QApplication.primaryScreen().geometry()
@@ -1375,7 +1448,7 @@ class MainWindow(QMainWindow):
 
         # Контентная область
         self.content_stack = QStackedWidget()
-        self.content_stack.setStyleSheet(f"background-color: #0B0C12;")
+        self.content_stack.setStyleSheet(f"background-color: {Config.COLORS['bg_primary']};")
         main_layout.addWidget(self.content_stack, 1)
 
         # Создаем страницы
@@ -1383,13 +1456,14 @@ class MainWindow(QMainWindow):
 
     def _create_sidebar(self):
         sidebar = QWidget()
-        sidebar.setFixedWidth(280)
-        sidebar.setStyleSheet(f"""
-            QWidget {{ background-color: {Config.COLORS['bg_secondary']}; border-right: 2px solid {Config.COLORS['border']}; }}
-        """)
+        sidebar.setFixedWidth(248)
+        sidebar.setStyleSheet(
+            f"QWidget {{ background-color: {Config.COLORS['bg_secondary']};"
+            f" border-right: 1px solid {Config.COLORS['border']}; }}"
+        )
         layout = QVBoxLayout(sidebar)
-        layout.setSpacing(6)
-        layout.setContentsMargins(20, 30, 20, 30)
+        layout.setSpacing(2)
+        layout.setContentsMargins(12, 20, 12, 20)
 
         # Логотип
         logo_container = QWidget()
@@ -1406,48 +1480,67 @@ class MainWindow(QMainWindow):
             logo_layout.addWidget(logo_img)
         
         logo_text = QLabel("CARVIX")
-        logo_text.setStyleSheet(f"font-size: 24px; font-weight: 700; color: {Config.COLORS['accent_cyan']}; background: transparent; letter-spacing: 1px;")
+        logo_text.setStyleSheet(
+            f"font-size: 17px; font-weight: 700; color: {Config.COLORS['text_primary']};"
+            f" background: transparent; letter-spacing: 2.5px;"
+        )
         logo_layout.addWidget(logo_text)
         logo_layout.addStretch()
         
         layout.addWidget(logo_container)
 
         # Инфо о пользователе
-        user_info = QLabel(f"{self.current_user.get('full_name', '')}")
-        user_info.setStyleSheet(f"color: {Config.COLORS['text_primary']}; font-size: 15px; background: transparent; padding: 8px 0; font-weight: 600;")
-        user_info.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(user_info)
-        
+        # User info block
+        user_block = QFrame()
+        user_block.setStyleSheet(
+            f"QFrame {{ background-color: {Config.COLORS.get('bg_elevated','#1A1A2A')};"
+            f" border-radius: 10px; border: 1px solid {Config.COLORS['border']}; }}"
+        )
+        user_block_layout = QVBoxLayout(user_block)
+        user_block_layout.setContentsMargins(12, 10, 12, 10)
+        user_block_layout.setSpacing(2)
+        user_info = QLabel(self.current_user.get('full_name', ''))
+        user_info.setStyleSheet(
+            f"color: {Config.COLORS['text_primary']}; font-size: 13px;"
+            f" font-weight: 600; background: transparent;"
+        )
+        user_block_layout.addWidget(user_info)
         role_label = QLabel(self.role)
-        role_label.setStyleSheet(f"color: {Config.COLORS['text_secondary']}; font-size: 13px; background: transparent;")
-        role_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(role_label)
-
-        layout.addSpacing(20)
+        role_label.setStyleSheet(
+            f"color: {Config.COLORS['text_muted']}; font-size: 11px; background: transparent;"
+        )
+        user_block_layout.addWidget(role_label)
+        layout.addWidget(user_block)
+        layout.addSpacing(16)
         
-        # Виджет уведомлений
+        # Notification pill
         notifications_card = QFrame()
-        notifications_card.setStyleSheet(f"""
-            QFrame {{ background-color: {Config.COLORS['bg_card']}; border-radius: 10px; border: 1px solid {Config.COLORS['border']}; padding: 10px; }}
-        """)
+        c_notif = Config.COLORS
+        accent = c_notif.get('accent', '#6366F1')
+        notifications_card.setStyleSheet(
+            f"QFrame {{ background-color: {accent}15; border-radius: 8px;"
+            f" border: 1px solid {accent}30; }}"
+        )
         notif_layout = QHBoxLayout(notifications_card)
-        notif_layout.setContentsMargins(8, 8, 8, 8)
-        
+        notif_layout.setContentsMargins(10, 7, 10, 7)
+        notif_layout.setSpacing(6)
         notif_icon = QLabel("🔔")
-        notif_icon.setStyleSheet("font-size: 18px; background: transparent;")
+        notif_icon.setStyleSheet("font-size: 13px; background: transparent;")
         notif_layout.addWidget(notif_icon)
-        
         self.notif_count_label = QLabel("0")
-        self.notif_count_label.setStyleSheet(f"color: {Config.COLORS['text_primary']}; font-size: 14px; font-weight: 600; background: transparent;")
+        self.notif_count_label.setStyleSheet(
+            f"color: {Config.COLORS['text_primary']}; font-size: 13px;"
+            f" font-weight: 700; background: transparent;"
+        )
         notif_layout.addWidget(self.notif_count_label)
-        
-        notif_text = QLabel("новых")
-        notif_text.setStyleSheet(f"color: {Config.COLORS['text_secondary']}; font-size: 12px; background: transparent;")
+        notif_text = QLabel("уведомлений")
+        notif_text.setStyleSheet(
+            f"color: {Config.COLORS['text_muted']}; font-size: 11px; background: transparent;"
+        )
         notif_layout.addWidget(notif_text)
         notif_layout.addStretch()
-        
         layout.addWidget(notifications_card)
-        layout.addSpacing(10)
+        layout.addSpacing(8)
 
         # Кнопки меню в зависимости от роли
         self.menu_buttons = {}
