@@ -57,3 +57,12 @@ html_s/*.tsbuildinfo
 # Temporary files
 *.tmp
 *.temp
+
+# Secrets / credentials (never commit these)
+oauth_client.json
+google-services.json
+*.pem
+*.key
+.env
+.env.*
+secrets.json

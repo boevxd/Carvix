@@ -45,7 +45,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import (
     Qt, QTimer, QPropertyAnimation, QEasingCurve, QPoint, QSize,
     QParallelAnimationGroup, QSequentialAnimationGroup, pyqtSignal,
-    QThread, QDate, QTime, QDateTime, QRect, QMargins
+    QThread, QDate, QTime, QDateTime, QRect, QMargins, QObject
 )
 from PyQt6.QtGui import (
     QFont, QIcon, QPixmap, QPainter, QColor, QLinearGradient,
@@ -846,45 +846,24 @@ class Database:
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (part_num, name, name, category, supplier_id, price, qty, min_qty, location))
 
-        # Тестовые заявки на ремонт
-        self.cursor.execute("SELECT id FROM users WHERE username = 'user1'")
-        user1_id = self.cursor.fetchone()[0]
-        self.cursor.execute("SELECT id FROM users WHERE username = 'mechanic1'")
-        mechanic1_id = self.cursor.fetchone()[0]
-        self.cursor.execute("SELECT id FROM users WHERE username = 'chief_mechanic'")
-        chief_id = self.cursor.fetchone()[0]
-        
-        # Получаем ID категорий и типов
+        # Тестовые заявки на ремонт (created_by=NULL — пользователи Firebase создаются позже)
         defect_cats = self.execute("SELECT id, name FROM defect_categories")
         repair_types_data = self.execute("SELECT id, name FROM repair_types")
         vehicles_data = self.execute("SELECT id FROM vehicles")
-        
-        import random
-        from datetime import timedelta
-        
-        statuses = [Config.STATUS_NEW, Config.STATUS_ACCEPTED, Config.STATUS_IN_PROGRESS, 
+
+        statuses = [Config.STATUS_NEW, Config.STATUS_ACCEPTED, Config.STATUS_IN_PROGRESS,
                    Config.STATUS_WAITING_PARTS, Config.STATUS_COMPLETED, Config.STATUS_CLOSED]
         priorities = [Config.PRIORITY_LOW, Config.PRIORITY_MEDIUM, Config.PRIORITY_HIGH, Config.PRIORITY_CRITICAL]
-        
         descriptions = [
-            "Не заводится двигатель",
-            "Посторонний шум при торможении",
-            "Течь масла из двигателя",
-            "Не работает кондиционер",
-            "Вибрация при движении",
-            "Проблема с коробкой передач",
-            "Горит Check Engine",
-            "Не работает стеклоподъемник",
-            "Износ тормозных колодок",
-            "Требуется замена масла",
-            "Проблема с рулевым управлением",
-            "Не работает стартер",
-            "Перегрев двигателя",
-            "Требуется диагностика подвески",
-            "Скрип при повороте руля",
+            "Не заводится двигатель", "Посторонний шум при торможении",
+            "Течь масла из двигателя", "Не работает кондиционер",
+            "Вибрация при движении", "Проблема с коробкой передач",
+            "Горит Check Engine", "Износ тормозных колодок",
+            "Требуется замена масла", "Проблема с рулевым управлением",
+            "Не работает стартер", "Перегрев двигателя",
+            "Требуется диагностика подвески", "Скрип при повороте руля",
         ]
-        
-        # Создаем 30 тестовых заявок
+
         for i in range(30):
             vehicle_id = random.choice(vehicles_data)['id']
             defect_cat_id = random.choice(defect_cats)['id']
@@ -892,30 +871,30 @@ class Database:
             status = random.choice(statuses)
             priority = random.choice(priorities)
             description = random.choice(descriptions)
-            
             created_date = datetime.now() - timedelta(days=random.randint(1, 60))
             request_number = f"RM-{created_date.strftime('%Y%m')}-{str(i+1).zfill(3)}"
-            
             estimated_cost = random.randint(5000, 50000)
-            actual_cost = estimated_cost + random.randint(-5000, 10000) if status in [Config.STATUS_COMPLETED, Config.STATUS_CLOSED] else None
-            
-            assigned_to = mechanic1_id if status not in [Config.STATUS_NEW] else None
-            accepted_at = created_date + timedelta(hours=random.randint(1, 24)) if status not in [Config.STATUS_NEW] else None
-            started_at = accepted_at + timedelta(hours=random.randint(1, 12)) if status in [Config.STATUS_IN_PROGRESS, Config.STATUS_WAITING_PARTS, Config.STATUS_COMPLETED, Config.STATUS_CLOSED] else None
-            completed_at = started_at + timedelta(days=random.randint(1, 7)) if status in [Config.STATUS_COMPLETED, Config.STATUS_CLOSED] else None
-            
+            actual_cost = (estimated_cost + random.randint(-5000, 10000)
+                          if status in [Config.STATUS_COMPLETED, Config.STATUS_CLOSED] else None)
+            accepted_at = (created_date + timedelta(hours=random.randint(1, 24))
+                          if status != Config.STATUS_NEW else None)
+            started_at = (accepted_at + timedelta(hours=random.randint(1, 12))
+                         if status in [Config.STATUS_IN_PROGRESS, Config.STATUS_WAITING_PARTS,
+                                       Config.STATUS_COMPLETED, Config.STATUS_CLOSED] else None)
+            completed_at = (started_at + timedelta(days=random.randint(1, 7))
+                           if status in [Config.STATUS_COMPLETED, Config.STATUS_CLOSED] else None)
             self.cursor.execute("""
                 INSERT INTO repair_requests (
                     request_number, vehicle_id, created_by, assigned_to,
                     defect_category_id, repair_type_id, description, priority, status,
                     estimated_cost, actual_cost, created_at, accepted_at, started_at, completed_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                request_number, vehicle_id, user1_id, assigned_to,
+                request_number, vehicle_id,
                 defect_cat_id, repair_type_id, description, priority, status,
                 estimated_cost, actual_cost, created_date, accepted_at, started_at, completed_at
             ))
-        
+
         self.connection.commit()
         logger.info("Initial data seeded successfully with 30 repair requests")
 
@@ -1016,6 +995,70 @@ class AnimationHelper:
         animation.setEndValue(geo)
         return animation
 
+    @staticmethod
+    def fade_page_in(widget, duration=220):
+        """Fade-in для страниц при переключении"""
+        effect = QGraphicsOpacityEffect(widget)
+        widget.setGraphicsEffect(effect)
+        anim = QPropertyAnimation(effect, b"opacity")
+        anim.setDuration(duration)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        anim.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+        return anim
+
+    @staticmethod
+    def pulse(widget, color_hex='#6366F1', duration=600):
+        """Pulsing glow on a widget (via shadow)."""
+        shadow = QGraphicsDropShadowEffect(widget)
+        shadow.setBlurRadius(0)
+        shadow.setColor(QColor(color_hex))
+        shadow.setOffset(0, 0)
+        widget.setGraphicsEffect(shadow)
+        anim = QPropertyAnimation(shadow, b"blurRadius")
+        anim.setDuration(duration)
+        anim.setStartValue(0)
+        anim.setKeyValueAt(0.5, 24)
+        anim.setEndValue(0)
+        anim.setEasingCurve(QEasingCurve.Type.InOutSine)
+        return anim
+
+
+class CountUpAnimation(QObject):
+    """Анимирует числовое значение — плавно считает от 0 до target."""
+    value_changed = pyqtSignal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._timer = QTimer(self)
+        self._timer.setInterval(16)   # ~60 fps
+        self._timer.timeout.connect(self._tick)
+        self._start = 0
+        self._target = 0
+        self._current = 0.0
+        self._duration = 600
+        self._elapsed = 0
+
+    def animate(self, target: int, duration: int = 600):
+        self._target = target
+        self._start = 0
+        self._current = 0.0
+        self._duration = max(duration, 1)
+        self._elapsed = 0
+        self._timer.start()
+
+    def _tick(self):
+        self._elapsed += 16
+        t = min(self._elapsed / self._duration, 1.0)
+        # ease-out cubic
+        ease = 1 - (1 - t) ** 3
+        self._current = self._start + (self._target - self._start) * ease
+        self.value_changed.emit(int(self._current))
+        if t >= 1.0:
+            self._timer.stop()
+            self.value_changed.emit(self._target)
+
 # =============================================================================
 # СТИЛИ
 # =============================================================================
@@ -1043,77 +1086,206 @@ class Styles:
         ok  = c['success']
         err = c['error']
         wrn = c['warning']
+        inf = c.get('info', '#38BDF8')
         return f"""
 QMainWindow {{ background-color: {bg0}; }}
-QWidget {{ background-color: {bg0}; color: {tp}; font-family: 'Segoe UI', 'Inter', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; font-size: 14px; }}
+QWidget {{ background-color: {bg0}; color: {tp};
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Inter', Arial, sans-serif; font-size: 14px; }}
 QFrame {{ background-color: {bg2}; border-radius: 12px; border: 1px solid {br}; }}
-QFrame#card {{ background-color: {bg2}; border-radius: 16px; border: 1px solid {br}; padding: 24px; }}
+QFrame#card {{ background-color: {bg2}; border-radius: 16px; border: 1px solid {br}; padding: 20px; }}
 QLabel {{ color: {tp}; background: transparent; border: none; }}
-QLabel#title {{ font-size: 28px; font-weight: 700; color: {tp}; letter-spacing: -0.5px; }}
-QLabel#subtitle {{ font-size: 14px; color: {ts}; font-weight: 400; }}
+QLabel#title {{ font-size: 26px; font-weight: 700; color: {tp}; letter-spacing: -0.5px; }}
+QLabel#subtitle {{ font-size: 13px; color: {ts}; font-weight: 400; }}
 QLabel#accent {{ color: {accent_l}; font-weight: 600; }}
-QLabel#sectionHeader {{ font-size: 11px; font-weight: 700; color: {tm}; letter-spacing: 1px; }}
-QPushButton {{ background-color: {accent}; color: #FFFFFF; border: none; border-radius: 10px; padding: 9px 20px; min-height: 38px; font-weight: 600; font-size: 13px; letter-spacing: 0.1px; }}
+QLabel#sectionHeader {{ font-size: 11px; font-weight: 700; color: {tm};
+  letter-spacing: 1.2px; text-transform: uppercase; }}
+QLabel#pageTitle {{ font-size: 20px; font-weight: 700; color: {tp}; }}
+
+QPushButton {{
+  background-color: {accent}; color: #FFFFFF; border: none;
+  border-radius: 10px; padding: 9px 22px; min-height: 36px;
+  font-weight: 600; font-size: 13px; letter-spacing: 0.2px;
+}}
 QPushButton:hover {{ background-color: {accent_l}; }}
-QPushButton:pressed {{ background-color: {accent_d}; }}
-QPushButton:focus {{ outline: none; border: 2px solid {accent_l}; }}
+QPushButton:pressed {{ background-color: {accent_d}; padding-top: 10px; padding-bottom: 8px; }}
+QPushButton:focus {{ outline: none; }}
 QPushButton:disabled {{ background-color: {bgh}; color: {td}; border: none; }}
-QPushButton#secondary {{ background-color: {bg3}; color: {tp}; border: 1px solid {br}; }}
-QPushButton#secondary:hover {{ background-color: {bgh}; border-color: {accent}; color: {accent_l}; }}
-QPushButton#danger {{ background-color: {c.get('error_bg','#EF444415')}; color: {err}; border: 1px solid {err}45; }}
-QPushButton#danger:hover {{ background-color: {err}; color: #fff; border-color: {err}; }}
-QPushButton#success {{ background-color: {c.get('success_bg','#10B98115')}; color: {ok}; border: 1px solid {ok}45; }}
-QPushButton#success:hover {{ background-color: {ok}; color: #fff; border-color: {ok}; }}
-QLineEdit {{ background-color: {bgi}; color: {tp}; border: 1px solid {br}; border-radius: 10px; padding: 9px 14px; font-size: 14px; min-height: 38px; selection-background-color: {accent}; }}
+QPushButton#secondary {{
+  background-color: transparent; color: {tp}; border: 1px solid {br};
+  border-radius: 10px;
+}}
+QPushButton#secondary:hover {{
+  background-color: {bgh}; border-color: {accent}40; color: {accent_l};
+}}
+QPushButton#secondary:pressed {{ background-color: {bg3}; }}
+QPushButton#danger {{
+  background-color: {c.get('error_bg','#EF444415')}; color: {err};
+  border: 1px solid {err}35; border-radius: 10px;
+}}
+QPushButton#danger:hover {{ background-color: {err}; color: #fff; }}
+QPushButton#success {{
+  background-color: {c.get('success_bg','#10B98115')}; color: {ok};
+  border: 1px solid {ok}35; border-radius: 10px;
+}}
+QPushButton#success:hover {{ background-color: {ok}; color: #fff; }}
+QPushButton#warning {{
+  background-color: {c.get('warning_bg','#F59E0B15')}; color: {wrn};
+  border: 1px solid {wrn}35; border-radius: 10px;
+}}
+QPushButton#warning:hover {{ background-color: {wrn}; color: #fff; }}
+QPushButton#icon {{
+  background-color: transparent; color: {ts}; border: none;
+  padding: 6px; min-height: 30px; min-width: 30px; border-radius: 8px;
+}}
+QPushButton#icon:hover {{ background-color: {bgh}; color: {tp}; }}
+
+QLineEdit {{
+  background-color: {bgi}; color: {tp}; border: 1.5px solid {br};
+  border-radius: 10px; padding: 9px 14px; font-size: 14px; min-height: 36px;
+  selection-background-color: {accent}40;
+}}
 QLineEdit:focus {{ border-color: {accent}; background-color: {bg2}; }}
+QLineEdit:hover:!focus {{ border-color: {accent}30; }}
 QLineEdit::placeholder {{ color: {tm}; }}
-QComboBox {{ background-color: {bgi}; color: {tp}; border: 1px solid {br}; border-radius: 10px; padding: 9px 14px; min-width: 160px; min-height: 38px; font-size: 14px; }}
-QComboBox:hover {{ border-color: {accent}; }}
+
+QComboBox {{
+  background-color: {bgi}; color: {tp}; border: 1.5px solid {br};
+  border-radius: 10px; padding: 9px 14px; min-width: 160px; min-height: 36px; font-size: 14px;
+}}
+QComboBox:hover {{ border-color: {accent}30; }}
 QComboBox:focus {{ border-color: {accent}; }}
-QComboBox::drop-down {{ border: none; width: 28px; }}
-QComboBox QAbstractItemView {{ background-color: {bg3}; color: {tp}; border: 1px solid {br}; border-radius: 10px; selection-background-color: {accent}; selection-color: #fff; padding: 4px; outline: none; }}
-QComboBox QAbstractItemView::item {{ padding: 8px 14px; border-radius: 6px; min-height: 30px; }}
-QTextEdit {{ background-color: {bgi}; color: {tp}; border: 1px solid {br}; border-radius: 10px; padding: 12px; font-size: 14px; }}
+QComboBox::drop-down {{ border: none; width: 32px; }}
+QComboBox QAbstractItemView {{
+  background-color: {bg3}; color: {tp}; border: 1px solid {br};
+  border-radius: 10px; selection-background-color: {accent};
+  selection-color: #fff; padding: 4px; outline: none;
+}}
+QComboBox QAbstractItemView::item {{
+  padding: 8px 14px; border-radius: 6px; min-height: 32px;
+}}
+QComboBox QAbstractItemView::item:hover {{
+  background-color: {bgh};
+}}
+
+QTextEdit {{
+  background-color: {bgi}; color: {tp}; border: 1.5px solid {br};
+  border-radius: 10px; padding: 12px; font-size: 14px; line-height: 1.5;
+}}
 QTextEdit:focus {{ border-color: {accent}; }}
-QTableWidget {{ background-color: {bg2}; color: {tp}; border: 1px solid {br}; border-radius: 12px; gridline-color: {dv}; selection-background-color: {glow}; selection-color: {tp}; alternate-background-color: {bg1}; font-size: 13px; outline: none; }}
-QTableWidget::item {{ padding: 12px 16px; border-bottom: 1px solid {dv}; min-height: 44px; }}
-QTableWidget::item:selected {{ background-color: {glow}; color: {tp}; }}
+
+QTableWidget {{
+  background-color: {bg2}; color: {tp}; border: 1px solid {br};
+  border-radius: 12px; gridline-color: transparent;
+  selection-background-color: {accent}18; selection-color: {tp};
+  alternate-background-color: {bg1}; font-size: 13px; outline: none;
+}}
+QTableWidget::item {{
+  padding: 12px 16px; border-bottom: 1px solid {dv}; min-height: 46px;
+}}
+QTableWidget::item:selected {{
+  background-color: {accent}18; color: {tp};
+  border-left: 2px solid {accent};
+}}
 QTableWidget::item:hover {{ background-color: {bgh}; }}
-QHeaderView::section {{ background-color: {bg1}; color: {tm}; padding: 11px 16px; border: none; border-bottom: 1px solid {br}; font-weight: 700; font-size: 11px; letter-spacing: 0.8px; }}
-QScrollBar:vertical {{ background-color: transparent; width: 6px; margin: 0; }}
-QScrollBar::handle:vertical {{ background-color: {br}; border-radius: 3px; min-height: 24px; }}
-QScrollBar::handle:vertical:hover {{ background-color: {tm}; }}
+QHeaderView::section {{
+  background-color: {bg1}; color: {tm}; padding: 12px 16px;
+  border: none; border-bottom: 1.5px solid {br};
+  font-weight: 700; font-size: 11px; letter-spacing: 0.8px;
+  text-transform: uppercase;
+}}
+QHeaderView::section:first {{ border-radius: 12px 0 0 0; }}
+QHeaderView::section:last {{ border-radius: 0 12px 0 0; }}
+
+QScrollBar:vertical {{
+  background-color: transparent; width: 7px; margin: 4px 2px;
+}}
+QScrollBar::handle:vertical {{
+  background-color: {br}; border-radius: 3px; min-height: 28px;
+}}
+QScrollBar::handle:vertical:hover {{ background-color: {accent}60; }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
-QScrollBar:horizontal {{ background-color: transparent; height: 6px; margin: 0; }}
-QScrollBar::handle:horizontal {{ background-color: {br}; border-radius: 3px; min-width: 24px; }}
-QScrollBar::handle:horizontal:hover {{ background-color: {tm}; }}
+QScrollBar:horizontal {{
+  background-color: transparent; height: 7px; margin: 2px 4px;
+}}
+QScrollBar::handle:horizontal {{
+  background-color: {br}; border-radius: 3px; min-width: 28px;
+}}
+QScrollBar::handle:horizontal:hover {{ background-color: {accent}60; }}
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0px; }}
-QDateEdit, QTimeEdit {{ background-color: {bgi}; color: {tp}; border: 1px solid {br}; border-radius: 10px; padding: 9px 14px; font-size: 14px; min-height: 38px; }}
+
+QDateEdit, QTimeEdit {{
+  background-color: {bgi}; color: {tp}; border: 1.5px solid {br};
+  border-radius: 10px; padding: 9px 14px; font-size: 14px; min-height: 36px;
+}}
 QDateEdit:focus, QTimeEdit:focus {{ border-color: {accent}; }}
-QSpinBox, QDoubleSpinBox {{ background-color: {bgi}; color: {tp}; border: 1px solid {br}; border-radius: 10px; padding: 9px 14px; font-size: 14px; min-height: 38px; }}
+QSpinBox, QDoubleSpinBox {{
+  background-color: {bgi}; color: {tp}; border: 1.5px solid {br};
+  border-radius: 10px; padding: 9px 14px; font-size: 14px; min-height: 36px;
+}}
 QSpinBox:focus, QDoubleSpinBox:focus {{ border-color: {accent}; }}
+
 QCheckBox {{ color: {tp}; spacing: 10px; font-size: 14px; }}
-QCheckBox::indicator {{ width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid {br}; background-color: {bgi}; }}
-QCheckBox::indicator:checked {{ background-color: {accent}; border-color: {accent}; }}
+QCheckBox::indicator {{
+  width: 18px; height: 18px; border-radius: 5px;
+  border: 1.5px solid {br}; background-color: {bgi};
+}}
+QCheckBox::indicator:checked {{
+  background-color: {accent}; border-color: {accent};
+  image: none;
+}}
 QCheckBox::indicator:hover {{ border-color: {accent}; }}
-QGroupBox {{ background-color: {bg2}; color: {tp}; border: 1px solid {br}; border-radius: 12px; margin-top: 12px; padding-top: 12px; font-weight: 600; font-size: 13px; }}
-QGroupBox::title {{ subcontrol-origin: margin; left: 14px; padding: 0 8px; color: {ts}; }}
-QTabWidget::pane {{ background-color: {bg2}; border: 1px solid {br}; border-radius: 12px; top: -1px; }}
-QTabBar::tab {{ background-color: transparent; color: {tm}; padding: 10px 20px; border: none; border-bottom: 2px solid transparent; margin-right: 2px; font-weight: 500; font-size: 13px; }}
-QTabBar::tab:selected {{ color: {tp}; border-bottom: 2px solid {accent}; font-weight: 600; }}
-QTabBar::tab:hover:!selected {{ color: {ts}; background-color: {bgh}; border-radius: 6px 6px 0 0; }}
-QMenu {{ background-color: {bg3}; color: {tp}; border: 1px solid {br}; border-radius: 12px; padding: 6px; }}
+
+QGroupBox {{
+  background-color: {bg2}; color: {tp}; border: 1px solid {br};
+  border-radius: 12px; margin-top: 14px; padding-top: 14px;
+  font-weight: 600; font-size: 13px;
+}}
+QGroupBox::title {{
+  subcontrol-origin: margin; left: 14px; padding: 0 8px; color: {ts};
+}}
+
+QTabWidget::pane {{
+  background-color: {bg2}; border: 1px solid {br}; border-radius: 12px; top: -1px;
+}}
+QTabBar::tab {{
+  background-color: transparent; color: {tm}; padding: 10px 22px;
+  border: none; border-bottom: 2px solid transparent;
+  margin-right: 4px; font-weight: 500; font-size: 13px;
+}}
+QTabBar::tab:selected {{
+  color: {tp}; border-bottom: 2px solid {accent}; font-weight: 600;
+}}
+QTabBar::tab:hover:!selected {{
+  color: {ts}; background-color: {bgh}; border-radius: 6px 6px 0 0;
+}}
+
+QMenu {{
+  background-color: {bg3}; color: {tp}; border: 1px solid {br};
+  border-radius: 12px; padding: 6px;
+}}
 QMenu::item {{ padding: 8px 20px; border-radius: 6px; font-size: 13px; }}
 QMenu::item:selected {{ background-color: {accent}; color: #fff; }}
 QMenu::separator {{ height: 1px; background-color: {dv}; margin: 4px 0; }}
-QProgressBar {{ background-color: {bg3}; border: none; border-radius: 3px; height: 5px; font-size: 0px; }}
-QProgressBar::chunk {{ background-color: {accent}; border-radius: 3px; }}
-QStatusBar {{ background-color: {bg1}; color: {tm}; border-top: 1px solid {br}; font-size: 12px; }}
-QToolBar {{ background-color: {bg1}; border: none; spacing: 8px; padding: 8px; }}
+
+QProgressBar {{
+  background-color: {bg3}; border: none; border-radius: 4px;
+  height: 6px; font-size: 0px;
+}}
+QProgressBar::chunk {{ background-color: {accent}; border-radius: 4px; }}
+
+QStatusBar {{
+  background-color: {bg1}; color: {tm}; border-top: 1px solid {br}; font-size: 12px;
+}}
 QDialog {{ background-color: {bg0}; }}
-QMessageBox {{ background-color: {bg0}; }}
+QMessageBox {{ background-color: {bg0}; color: {tp}; }}
+QMessageBox QLabel {{ color: {tp}; }}
 QMessageBox QPushButton {{ min-width: 90px; }}
-QToolTip {{ background-color: {bg3}; color: {tp}; border: 1px solid {br}; border-radius: 6px; padding: 5px 10px; font-size: 12px; }}
+QToolTip {{
+  background-color: {bg3}; color: {tp}; border: 1px solid {br};
+  border-radius: 8px; padding: 6px 12px; font-size: 12px;
+}}
+QInputDialog {{ background-color: {bg0}; }}
+QInputDialog QLabel {{ color: {tp}; }}
         """
 
 # =============================================================================
@@ -1126,81 +1298,83 @@ class Card(QFrame):
         self.setObjectName("card")
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.clickable = clickable
-        self._setup_shadow()
+        self._shadow = QGraphicsDropShadowEffect(self)
+        self._shadow.setBlurRadius(8)
+        self._shadow.setColor(QColor(0, 0, 0, 80))
+        self._shadow.setOffset(0, 2)
+        self.setGraphicsEffect(self._shadow)
         if clickable:
             self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-
-    def _setup_shadow(self, hovered=False):
-        shadow = QGraphicsDropShadowEffect(self)
-        if hovered:
-            shadow.setBlurRadius(20)
-            shadow.setColor(QColor(99, 102, 241, 50))  # Indigo glow
-            shadow.setOffset(0, 4)
-        else:
-            shadow.setBlurRadius(8)
-            shadow.setColor(QColor(0, 0, 0, 80))
-            shadow.setOffset(0, 2)
-        self.setGraphicsEffect(shadow)
+        self._blur_anim = QPropertyAnimation(self._shadow, b"blurRadius")
+        self._blur_anim.setDuration(180)
+        self._blur_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
 
     def enterEvent(self, event):
         if self.clickable:
-            shadow = self.graphicsEffect()
-            if shadow:
-                shadow.setBlurRadius(20)
-                shadow.setColor(QColor(99, 102, 241, 50))  # Indigo glow
-                shadow.setOffset(0, 4)
+            self._shadow.setColor(QColor(99, 102, 241, 55))
+            self._shadow.setOffset(0, 6)
+            self._blur_anim.stop()
+            self._blur_anim.setStartValue(int(self._shadow.blurRadius()))
+            self._blur_anim.setEndValue(24)
+            self._blur_anim.start()
         super().enterEvent(event)
 
     def leaveEvent(self, event):
         if self.clickable:
-            self._setup_shadow()
+            self._shadow.setColor(QColor(0, 0, 0, 80))
+            self._shadow.setOffset(0, 2)
+            self._blur_anim.stop()
+            self._blur_anim.setStartValue(int(self._shadow.blurRadius()))
+            self._blur_anim.setEndValue(8)
+            self._blur_anim.start()
         super().leaveEvent(event)
 
 class MetricCard(Card):
     def __init__(self, title, value, subtitle="", icon="", color=None, parent=None):
         super().__init__(parent, clickable=True)
         self.color = color or Config.COLORS.get('accent', '#6366F1')
+        self._raw_value = value
+        self._count_anim = CountUpAnimation(self)
         self._setup_ui(title, value, subtitle, icon)
+        self._count_anim.value_changed.connect(self._on_count)
 
     def _setup_ui(self, title, value, subtitle, icon):
         c = Config.COLORS
-        accent = c.get('accent', '#6366F1')
         color = self.color
         layout = QVBoxLayout(self)
         layout.setSpacing(0)
         layout.setContentsMargins(20, 18, 20, 18)
-        # Icon pill
+        # Icon pill + trend row
+        top_row = QHBoxLayout()
+        top_row.setContentsMargins(0, 0, 0, 0)
         if icon:
-            icon_row = QHBoxLayout()
-            icon_row.setContentsMargins(0, 0, 0, 0)
             icon_lbl = QLabel(icon)
             icon_lbl.setFixedSize(40, 40)
             icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             icon_lbl.setStyleSheet(
                 f"font-size: 20px; background-color: {color}20;"
-                f" border: 1px solid {color}35; border-radius: 10px;"
+                f" border: 1px solid {color}30; border-radius: 10px;"
                 f" color: {color}; padding: 0;"
             )
-            icon_row.addWidget(icon_lbl)
-            icon_row.addStretch()
-            layout.addLayout(icon_row)
-            layout.addSpacing(12)
+            top_row.addWidget(icon_lbl)
+        top_row.addStretch()
+        layout.addLayout(top_row)
+        layout.addSpacing(12)
         # Title
         title_label = QLabel(title)
         title_label.setStyleSheet(
             f"color: {c['text_muted']}; font-size: 11px; font-weight: 700;"
-            f" letter-spacing: 0.8px; background: transparent;"
+            f" letter-spacing: 0.8px; text-transform: uppercase; background: transparent;"
         )
         layout.addWidget(title_label)
         layout.addSpacing(4)
         # Value
-        value_label = QLabel(value)
-        value_label.setStyleSheet(
+        self.value_label = QLabel(value)
+        self.value_label.setStyleSheet(
             f"color: {c['text_primary']}; font-size: 32px; font-weight: 700;"
             f" letter-spacing: -1px; background: transparent;"
         )
-        layout.addWidget(value_label)
-        self.value_label = value_label
+        layout.addWidget(self.value_label)
         # Subtitle
         if subtitle:
             layout.addSpacing(4)
@@ -1209,10 +1383,29 @@ class MetricCard(Card):
                 f"color: {c['text_muted']}; font-size: 12px; background: transparent;"
             )
             layout.addWidget(sub_label)
+        # Bottom accent bar
         layout.addStretch()
+        bar = QFrame()
+        bar.setFixedHeight(3)
+        bar.setStyleSheet(
+            f"background-color: {color}; border-radius: 2px; border: none;"
+        )
+        layout.addWidget(bar)
 
-    def set_value(self, value):
-        self.value_label.setText(value)
+    def _on_count(self, val):
+        self.value_label.setText(str(val))
+
+    def set_value(self, value: str):
+        """Set value; if numeric triggers count-up animation."""
+        self._raw_value = value
+        # Try numeric animation
+        clean = value.replace(' ', '').replace('\u00a0', '').replace(',', '')
+        try:
+            num = int(float(clean.replace('км', '').replace('₽', '').strip()))
+            self.value_label.setText('0')
+            self._count_anim.animate(num, 700)
+        except (ValueError, AttributeError):
+            self.value_label.setText(value)
 
 class StatusBadge(QLabel):
     def __init__(self, status, parent=None):
@@ -1246,12 +1439,20 @@ class PriorityBadge(QLabel):
 
 class SidebarButton(QPushButton):
     clicked_signal = pyqtSignal()
+
     def __init__(self, text, icon="", parent=None):
         super().__init__(text, parent)
         self.icon_text = icon
         self.setCheckable(True)
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self._setup_style()
+        # Opacity effect for press animation
+        self._op = QGraphicsOpacityEffect(self)
+        self._op.setOpacity(1.0)
+        self.setGraphicsEffect(self._op)
+        self._press_anim = QPropertyAnimation(self._op, b"opacity")
+        self._press_anim.setDuration(120)
+        self._press_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
 
     def _setup_style(self):
         c = Config.COLORS
@@ -1260,15 +1461,27 @@ class SidebarButton(QPushButton):
         self.setStyleSheet(
             f"QPushButton {{ background-color: transparent; color: {c['text_muted']};"
             f" border: none; border-radius: 8px; padding: 9px 14px;"
-            f" text-align: left; font-size: 14px; font-weight: 500; min-height: 38px; }}"
+            f" text-align: left; font-size: 13px; font-weight: 500; min-height: 38px; }}"
             f" QPushButton:hover {{ background-color: {c['bg_hover']}; color: {c['text_secondary']}; }}"
-            f" QPushButton:checked {{ background-color: {accent}18; color: {accent_l};"
-            f" font-weight: 600; border-left: 2px solid {accent}; }}"
+            f" QPushButton:checked {{ background-color: {accent}15; color: {accent_l};"
+            f" font-weight: 600; border-left: 3px solid {accent};"
+            f" padding-left: 11px; }}"
         )
 
     def mousePressEvent(self, event):
+        self._press_anim.stop()
+        self._press_anim.setStartValue(1.0)
+        self._press_anim.setEndValue(0.7)
+        self._press_anim.start()
         self.clicked_signal.emit()
         super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self._press_anim.stop()
+        self._press_anim.setStartValue(self._op.opacity())
+        self._press_anim.setEndValue(1.0)
+        self._press_anim.start()
+        super().mouseReleaseEvent(event)
 
 class SearchBox(QLineEdit):
     def __init__(self, placeholder="Поиск...", parent=None):
@@ -2077,27 +2290,48 @@ class MainWindow(QMainWindow):
             "settings": 10,
         }
         if page_id in page_map:
-            self.content_stack.setCurrentIndex(page_map[page_id])
+            idx = page_map[page_id]
+            self.content_stack.setCurrentIndex(idx)
+            # Fade-in animation for the new page
+            current_widget = self.content_stack.currentWidget()
+            if current_widget:
+                AnimationHelper.fade_page_in(current_widget, duration=200)
+            # Trigger page refresh callback if registered
+            refresh_fn = getattr(self, '_page_refresh_callbacks', {}).get(page_id)
+            if refresh_fn:
+                try:
+                    refresh_fn()
+                except Exception as e:
+                    logger.warning(f"Page refresh error for {page_id}: {e}")
 
     def _create_pages(self):
+        self._page_refresh_callbacks = {}
+
         # Страница 0: Дашборд
         self.content_stack.addWidget(self._create_dashboard_page())
+        self._page_refresh_callbacks["dashboard"] = self._update_dashboard
         # Страница 1: Заявки на ремонт
         self.content_stack.addWidget(self._create_requests_page())
+        self._page_refresh_callbacks["requests"] = self._load_requests
         # Страница 2: Мои заявки
         self.content_stack.addWidget(self._create_my_requests_page())
+        self._page_refresh_callbacks["my_requests"] = self._load_my_requests
         # Страница 3: ТО
         self.content_stack.addWidget(self._create_maintenance_page())
+        self._page_refresh_callbacks["maintenance"] = self._load_maintenance
         # Страница 4: Автопарк
         self.content_stack.addWidget(self._create_vehicles_page())
+        self._page_refresh_callbacks["vehicles"] = self._load_vehicles
         # Страница 5: Аналитика
         self.content_stack.addWidget(self._create_analytics_page())
         # Страница 6: Пользователи
         self.content_stack.addWidget(self._create_users_page())
+        self._page_refresh_callbacks["users"] = self._load_users
         # Страница 7: Справочники
         self.content_stack.addWidget(self._create_reference_page())
         # Страница 8: Запчасти
         self.content_stack.addWidget(self._create_parts_page())
+        self._page_refresh_callbacks["parts"] = self._load_parts
         # Страница 9: Профиль
         self.content_stack.addWidget(self._create_profile_page())
         # Страница 10: Настройки
@@ -2816,14 +3050,21 @@ class MainWindow(QMainWindow):
 
     def _create_maintenance_page(self):
         page = QWidget()
+        page.setStyleSheet(f"background-color: {Config.COLORS['bg_primary']};")
         layout = QVBoxLayout(page)
-        layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        header = QLabel("⚙️ Техническое обслуживание")
-        header.setStyleSheet(f"font-size: 24px; font-weight: 700; color: {Config.COLORS['text_primary']}; background: transparent;")
-        layout.addWidget(header)
-        layout.addSpacing(20)
+        hdr, _ = self._create_page_header(
+            "🔩", "Техническое обслуживание",
+            "График и история ТО автопарка"
+        )
+        layout.addWidget(hdr)
+        inner = QWidget()
+        inner.setStyleSheet(f"background-color: {Config.COLORS['bg_primary']};")
+        inner_lay = QVBoxLayout(inner)
+        inner_lay.setSpacing(16)
+        inner_lay.setContentsMargins(24, 20, 24, 24)
 
         # Таблица ТО
         self.maintenance_table = QTableWidget()
@@ -2835,7 +3076,8 @@ class MainWindow(QMainWindow):
         self.maintenance_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.maintenance_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         self.maintenance_table.setWordWrap(True)
-        layout.addWidget(self.maintenance_table)
+        inner_lay.addWidget(self.maintenance_table)
+        layout.addWidget(inner, 1)
 
         self._load_maintenance()
 
@@ -2880,22 +3122,24 @@ class MainWindow(QMainWindow):
 
     def _create_vehicles_page(self):
         page = QWidget()
+        page.setStyleSheet(f"background-color: {Config.COLORS['bg_primary']};")
         layout = QVBoxLayout(page)
-        layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        header_layout = QHBoxLayout()
-        header = QLabel("🚗 Автопарк")
-        header.setStyleSheet(f"font-size: 24px; font-weight: 700; color: {Config.COLORS['text_primary']}; background: transparent;")
-        header_layout.addWidget(header)
-        header_layout.addStretch()
-
-        if self.role == 'Администратор':
-            add_btn = QPushButton("+ Добавить ТС")
-            add_btn.clicked.connect(self._show_add_vehicle_dialog)
-            header_layout.addWidget(add_btn)
-
-        layout.addLayout(header_layout)
+        add_cb = self._show_add_vehicle_dialog if self.role == 'Администратор' else None
+        hdr, _ = self._create_page_header(
+            "🚗", "Автопарк",
+            "Управление транспортными средствами",
+            action_btn_text="+ Добавить ТС" if add_cb else "",
+            action_btn_cb=add_cb
+        )
+        layout.addWidget(hdr)
+        inner = QWidget()
+        inner.setStyleSheet(f"background-color: {Config.COLORS['bg_primary']};")
+        inner_lay = QVBoxLayout(inner)
+        inner_lay.setSpacing(12)
+        inner_lay.setContentsMargins(24, 16, 24, 24)
 
         # Фильтры
         filters_layout = QHBoxLayout()
@@ -2919,13 +3163,13 @@ class MainWindow(QMainWindow):
         self.vehicle_search.textChanged.connect(self._load_vehicles)
         filters_layout.addWidget(self.vehicle_search)
 
-        layout.addLayout(filters_layout)
+        inner_lay.addLayout(filters_layout)
 
         # Таблица
         self.vehicles_table = QTableWidget()
         self.vehicles_table.setColumnCount(10)
         self.vehicles_table.setHorizontalHeaderLabels([
-            "Номер", "Марка", "Модель", "Год", "Категория", "Подразделение", 
+            "Номер", "Марка", "Модель", "Год", "Категория", "Подразделение",
             "Пробег", "Статус", "След. ТО", "Действия"
         ])
         self.vehicles_table.horizontalHeader().setStretchLastSection(True)
@@ -2934,7 +3178,8 @@ class MainWindow(QMainWindow):
         self.vehicles_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.vehicles_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.vehicles_table.setWordWrap(True)
-        layout.addWidget(self.vehicles_table)
+        inner_lay.addWidget(self.vehicles_table)
+        layout.addWidget(inner, 1)
 
         self._load_vehicles()
 
@@ -3003,14 +3248,21 @@ class MainWindow(QMainWindow):
 
     def _create_analytics_page(self):
         page = QWidget()
+        page.setStyleSheet(f"background-color: {Config.COLORS['bg_primary']};")
         layout = QVBoxLayout(page)
-        layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        header = QLabel("📈 Аналитика автопарка")
-        header.setStyleSheet(f"font-size: 24px; font-weight: 700; color: {Config.COLORS['text_primary']}; background: transparent;")
-        layout.addWidget(header)
-        layout.addSpacing(20)
+        hdr, _ = self._create_page_header(
+            "📈", "Аналитика автопарка",
+            "KPI, статистика затрат и эффективность"
+        )
+        layout.addWidget(hdr)
+        inner = QWidget()
+        inner.setStyleSheet(f"background-color: {Config.COLORS['bg_primary']};")
+        inner_lay = QVBoxLayout(inner)
+        inner_lay.setSpacing(16)
+        inner_lay.setContentsMargins(24, 20, 24, 24)
 
         # KPI карточки
         kpi_layout = QHBoxLayout()
@@ -3036,21 +3288,19 @@ class MainWindow(QMainWindow):
         kpi4 = MetricCard("Эффективность", "87%", "KPI ремонтной службы", "📈", Config.COLORS['accent_purple'])
         kpi_layout.addWidget(kpi4)
 
-        layout.addLayout(kpi_layout)
+        inner_lay.addLayout(kpi_layout)
 
         # Графики
         charts_layout = QHBoxLayout()
         charts_layout.setSpacing(15)
 
-        # График затрат по месяцам
         cost_chart = self._create_cost_chart()
         charts_layout.addWidget(cost_chart)
 
-        # График проблемных единиц
         problems_chart = self._create_problems_chart()
         charts_layout.addWidget(problems_chart)
 
-        layout.addLayout(charts_layout)
+        inner_lay.addLayout(charts_layout)
 
         # Кнопки экспорта
         export_layout = QHBoxLayout()
@@ -3066,9 +3316,9 @@ class MainWindow(QMainWindow):
         export_pdf_btn.clicked.connect(lambda: self._export_analytics('pdf'))
         export_layout.addWidget(export_pdf_btn)
 
-        layout.addLayout(export_layout)
-
-        layout.addStretch()
+        inner_lay.addLayout(export_layout)
+        inner_lay.addStretch()
+        layout.addWidget(inner, 1)
 
         return page
 
@@ -3181,26 +3431,23 @@ class MainWindow(QMainWindow):
 
     def _create_users_page(self):
         page = QWidget()
+        page.setStyleSheet(f"background-color: {Config.COLORS['bg_primary']};")
         layout = QVBoxLayout(page)
-        layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        header_layout = QHBoxLayout()
-        header = QLabel("👥 Пользователи")
-        header.setStyleSheet(f"font-size: 24px; font-weight: 700; color: {Config.COLORS['text_primary']}; background: transparent;")
-        header_layout.addWidget(header)
-        header_layout.addStretch()
-
-        add_btn = QPushButton("+ Добавить пользователя")
-        add_btn.setStyleSheet(f"""
-            QPushButton {{ background-color: {Config.COLORS['accent_cyan']}; color: {Config.COLORS['bg_primary']}; 
-                         border: none; border-radius: 8px; padding: 10px 20px; font-weight: bold; }}
-            QPushButton:hover {{ background-color: {Config.COLORS['accent_pink']}; }}
-        """)
-        add_btn.clicked.connect(self._show_add_user_dialog)
-        header_layout.addWidget(add_btn)
-
-        layout.addLayout(header_layout)
+        hdr, _ = self._create_page_header(
+            "👥", "Пользователи",
+            "Управление аккаунтами и ролями",
+            action_btn_text="+ Добавить пользователя",
+            action_btn_cb=self._show_add_user_dialog
+        )
+        layout.addWidget(hdr)
+        inner = QWidget()
+        inner.setStyleSheet(f"background-color: {Config.COLORS['bg_primary']};")
+        inner_lay = QVBoxLayout(inner)
+        inner_lay.setSpacing(12)
+        inner_lay.setContentsMargins(24, 16, 24, 24)
 
         # Таблица пользователей
         self.users_table = QTableWidget()
@@ -3214,7 +3461,8 @@ class MainWindow(QMainWindow):
         self.users_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.users_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.users_table.setWordWrap(True)
-        layout.addWidget(self.users_table)
+        inner_lay.addWidget(self.users_table)
+        layout.addWidget(inner, 1)
 
         self._load_users()
 
@@ -3691,6 +3939,67 @@ class MainWindow(QMainWindow):
             self.db.connection.commit()
         except Exception as e:
             logger.error(f"Error saving theme: {e}")
+
+    def _create_page_header(self, icon: str, title: str, subtitle: str = "",
+                            action_btn_text: str = "", action_btn_cb=None,
+                            secondary_btn_text: str = "", secondary_btn_cb=None) -> tuple:
+        """Returns (header_widget, layout_for_extra_widgets).
+        Builds a polished fixed-height header bar for any content page.
+        """
+        c = Config.COLORS
+        accent = c.get('accent', '#6366F1')
+        bar = QWidget()
+        bar.setFixedHeight(72)
+        bar.setStyleSheet(
+            f"QWidget {{ background-color: {c['bg_secondary']};"
+            f" border-bottom: 1px solid {c['border']}; }}"
+        )
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(28, 0, 28, 0)
+        row.setSpacing(14)
+
+        # Icon circle
+        ic = QLabel(icon)
+        ic.setFixedSize(40, 40)
+        ic.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ic.setStyleSheet(
+            f"font-size: 18px; background-color: {accent}18;"
+            f" border: 1px solid {accent}30; border-radius: 10px;"
+        )
+        row.addWidget(ic)
+
+        # Title + subtitle
+        col = QVBoxLayout()
+        col.setSpacing(1)
+        tl = QLabel(title)
+        tl.setStyleSheet(
+            f"font-size: 17px; font-weight: 700; color: {c['text_primary']}; background: transparent;"
+        )
+        col.addWidget(tl)
+        if subtitle:
+            sl = QLabel(subtitle)
+            sl.setStyleSheet(
+                f"font-size: 12px; color: {c['text_muted']}; background: transparent;"
+            )
+            col.addWidget(sl)
+        row.addLayout(col)
+        row.addStretch()
+
+        # Optional action buttons
+        if secondary_btn_text and secondary_btn_cb:
+            s_btn = QPushButton(secondary_btn_text)
+            s_btn.setObjectName("secondary")
+            s_btn.setFixedHeight(34)
+            s_btn.clicked.connect(secondary_btn_cb)
+            row.addWidget(s_btn)
+
+        if action_btn_text and action_btn_cb:
+            a_btn = QPushButton(action_btn_text)
+            a_btn.setFixedHeight(34)
+            a_btn.clicked.connect(action_btn_cb)
+            row.addWidget(a_btn)
+
+        return bar, row
 
     def _rebuild_ui(self):
         """Перестроить UI с текущими цветами темы"""
