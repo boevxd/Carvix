@@ -416,8 +416,25 @@ def format_date(date_obj):
 # БАЗА ДАННЫХ
 # =============================================================================
 
+def get_app_data_dir():
+    """Returns writable app data directory (%APPDATA%/Carvix)"""
+    appdata = os.environ.get('APPDATA', os.path.expanduser('~'))
+    path = os.path.join(appdata, 'Carvix')
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def get_resource_path(filename):
+    """Returns path to resource file (works with PyInstaller and normal run)"""
+    # PyInstaller creates a temp folder and stores path in sys._MEIPASS
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, filename)
+    # Normal run - look in script directory
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+
 class Database:
-    def __init__(self, db_name=Config.DB_NAME):
+    def __init__(self, db_name=None):
+        if db_name is None:
+            db_name = os.path.join(get_app_data_dir(), Config.DB_NAME)
         self.db_name = db_name
         self.connection = None
         self.cursor = None
@@ -1801,8 +1818,9 @@ class LoginWindow(QMainWindow):
         
         # Устанавливаем иконку окна
         for icon_file in ['avatarka.png', 'img.png']:
-            if os.path.exists(icon_file):
-                self.setWindowIcon(QIcon(icon_file))
+            icon_path = get_resource_path(icon_file)
+            if os.path.exists(icon_path):
+                self.setWindowIcon(QIcon(icon_path))
                 break
         
         self.setStyleSheet(self._get_login_stylesheet())
@@ -2310,8 +2328,9 @@ class MainWindow(QMainWindow):
         
         # Устанавливаем иконку окна
         for icon_file in ['avatarka.png', 'img.png']:
-            if os.path.exists(icon_file):
-                self.setWindowIcon(QIcon(icon_file))
+            icon_path = get_resource_path(icon_file)
+            if os.path.exists(icon_path):
+                self.setWindowIcon(QIcon(icon_path))
                 break
         
         self.setStyleSheet(Styles.get_main_stylesheet())
