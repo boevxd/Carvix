@@ -989,6 +989,9 @@ class Database:
         if self.cursor.fetchone()[0] > 0:
             return
 
+        # Отключаем FK на время сидинга (много cross-refs, включаем в конце)
+        self.cursor.execute("PRAGMA foreign_keys = OFF")
+
         # Роли
         roles = [
             ('Администратор', 'Полный доступ к системе', 'all'),
@@ -1112,7 +1115,10 @@ class Database:
 
         # Тестовые пользователи добавляются через _ensure_dev_users() при каждом старте
 
-        # Тестовые заявки на ремонт (created_by=NULL — пользователи Firebase создаются позже)
+        # Ещё один commit для гарантии что все справочники доступны для FK
+        self.connection.commit()
+
+        # Тестовые заявки на ремонт (created_by=0 — будет назначен dev-пользователем позже)
         defect_cats = self.execute("SELECT id, name FROM defect_categories")
         repair_types_data = self.execute("SELECT id, name FROM repair_types")
         vehicles_data = self.execute("SELECT id FROM vehicles")
@@ -1162,6 +1168,7 @@ class Database:
             ))
 
         self.connection.commit()
+        self.cursor.execute("PRAGMA foreign_keys = ON")
         logger.info("Initial data seeded successfully with 30 repair requests")
 
     def execute(self, query, params=()):
