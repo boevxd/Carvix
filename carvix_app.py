@@ -18,6 +18,7 @@ import sys
 import os
 import sqlite3
 import json
+import subprocess
 import hashlib
 import logging
 import traceback
@@ -1032,7 +1033,7 @@ class Card(QFrame):
 class MetricCard(Card):
     def __init__(self, title, value, subtitle="", icon="", color=None, parent=None):
         super().__init__(parent, clickable=True)
-        self.color = color or Config.COLORS['accent_cyan']
+        self.color = color or Config.COLORS.get('accent', '#6366F1')
         self._setup_ui(title, value, subtitle, icon)
 
     def _setup_ui(self, title, value, subtitle, icon):
@@ -1180,7 +1181,7 @@ class LoadingSpinner(QWidget):
         for i in range(8):
             angle = self.angle + i * 45
             alpha = 255 - i * 25
-            color = QColor(Config.COLORS['accent_cyan'])
+            color = QColor(Config.COLORS.get('accent', '#6366F1'))
             color.setAlpha(alpha)
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(color)
@@ -1668,10 +1669,11 @@ class MainWindow(QMainWindow):
                 (self.current_user['id'],)
             )[0] or 0
             self.notif_count_label.setText(str(count))
+            accent = Config.COLORS.get('accent', '#6366F1')
             if count > 0:
-                self.notif_count_label.setStyleSheet(f"color: {Config.COLORS['accent_cyan']}; font-size: 14px; font-weight: 700; background: transparent;")
+                self.notif_count_label.setStyleSheet(f"color: {accent}; font-size: 13px; font-weight: 700; background: transparent;")
             else:
-                self.notif_count_label.setStyleSheet(f"color: {Config.COLORS['text_primary']}; font-size: 14px; font-weight: 600; background: transparent;")
+                self.notif_count_label.setStyleSheet(f"color: {Config.COLORS['text_primary']}; font-size: 13px; font-weight: 600; background: transparent;")
         except Exception as e:
             logger.error(f"Error updating notifications count: {e}")
     
@@ -1830,7 +1832,8 @@ class MainWindow(QMainWindow):
                               Config.COLORS['accent_green'], Config.COLORS['accent_purple']]
 
                 ax.pie(values, labels=labels, autopct='%1.0f%%', startangle=90,
-                       colors=colors_list[:len(labels)], textprops={'color': 'white'})
+                       colors=colors_list[:len(labels)],
+                       textprops={'color': Config.COLORS['text_primary']})
 
             canvas = FigureCanvas(figure)
             layout.addWidget(canvas)
@@ -1870,11 +1873,13 @@ class MainWindow(QMainWindow):
 
                 ax.plot(months, counts, marker='o', color=Config.COLORS['accent_cyan'], linewidth=2)
                 ax.fill_between(months, counts, alpha=0.3, color=Config.COLORS['accent_cyan'])
-                ax.set_xlabel('Месяц', color='white')
-                ax.set_ylabel('Количество', color='white')
-                ax.tick_params(colors='white')
-                ax.spines['bottom'].set_color('white')
-                ax.spines['left'].set_color('white')
+                tc = Config.COLORS['text_secondary']
+                bc = Config.COLORS['border']
+                ax.set_xlabel('Месяц', color=tc)
+                ax.set_ylabel('Количество', color=tc)
+                ax.tick_params(colors=tc)
+                ax.spines['bottom'].set_color(bc)
+                ax.spines['left'].set_color(bc)
                 ax.spines['top'].set_visible(False)
                 ax.spines['right'].set_visible(False)
 
@@ -1950,21 +1955,9 @@ class MainWindow(QMainWindow):
         header_layout.addWidget(header)
         header_layout.addStretch()
 
-        # Кнопка создания заявки
         create_btn = QPushButton("+ Создать заявку")
-        create_btn.setStyleSheet(f"""
-            QPushButton {{ background-color: {Config.COLORS['accent_cyan']}; color: {Config.COLORS['bg_primary']}; 
-                         border: none; border-radius: 8px; padding: 10px 20px; font-weight: bold; }}
-            QPushButton:hover {{ background-color: {Config.COLORS['accent_pink']}; }}
-        """)
         create_btn.clicked.connect(self._show_create_request_dialog)
         header_layout.addWidget(create_btn)
-
-        # Кнопки экспорта
-        export_excel_btn = QPushButton("📊 Excel")
-        export_excel_btn.setObjectName("secondary")
-        export_excel_btn.clicked.connect(lambda: self._export_requests('excel'))
-        header_layout.addWidget(export_excel_btn)
 
         export_pdf_btn = QPushButton("📄 PDF")
         export_pdf_btn.setObjectName("secondary")
@@ -2205,11 +2198,6 @@ class MainWindow(QMainWindow):
         # Кнопка создания заявки для пользователей
         if self.role == 'Пользователь':
             create_btn = QPushButton("+ Создать заявку")
-            create_btn.setStyleSheet(f"""
-                QPushButton {{ background-color: {Config.COLORS['accent_cyan']}; color: {Config.COLORS['bg_primary']}; 
-                             border: none; border-radius: 8px; padding: 10px 20px; font-weight: bold; }}
-                QPushButton:hover {{ background-color: {Config.COLORS['accent_pink']}; }}
-            """)
             create_btn.clicked.connect(self._show_create_request_dialog)
             header_layout.addWidget(create_btn)
 
@@ -2382,11 +2370,6 @@ class MainWindow(QMainWindow):
 
         if self.role == 'Администратор':
             add_btn = QPushButton("+ Добавить ТС")
-            add_btn.setStyleSheet(f"""
-                QPushButton {{ background-color: {Config.COLORS['accent_cyan']}; color: {Config.COLORS['bg_primary']}; 
-                             border: none; border-radius: 8px; padding: 10px 20px; font-weight: bold; }}
-                QPushButton:hover {{ background-color: {Config.COLORS['accent_pink']}; }}
-            """)
             add_btn.clicked.connect(self._show_add_vehicle_dialog)
             header_layout.addWidget(add_btn)
 
@@ -2595,11 +2578,13 @@ class MainWindow(QMainWindow):
                 costs = [d['cost'] or 0 for d in reversed(data)]
 
                 bars = ax.bar(months, costs, color=Config.COLORS['accent_cyan'])
-                ax.set_xlabel('Месяц', color='white')
-                ax.set_ylabel('Сумма (руб)', color='white')
-                ax.tick_params(colors='white')
-                ax.spines['bottom'].set_color('white')
-                ax.spines['left'].set_color('white')
+                tc = Config.COLORS['text_secondary']
+                bc = Config.COLORS['border']
+                ax.set_xlabel('Месяц', color=tc)
+                ax.set_ylabel('Сумма (руб)', color=tc)
+                ax.tick_params(colors=tc)
+                ax.spines['bottom'].set_color(bc)
+                ax.spines['left'].set_color(bc)
                 ax.spines['top'].set_visible(False)
                 ax.spines['right'].set_visible(False)
 
@@ -2608,7 +2593,7 @@ class MainWindow(QMainWindow):
                     height = bar.get_height()
                     ax.text(bar.get_x() + bar.get_width()/2., height,
                            f'{int(height):,}'.replace(',', ' '),
-                           ha='center', va='bottom', color='white', fontsize=9)
+                           ha='center', va='bottom', color=tc, fontsize=9)
 
             canvas = FigureCanvas(figure)
             layout.addWidget(canvas)
@@ -2647,10 +2632,12 @@ class MainWindow(QMainWindow):
                 counts = [d['count'] for d in data]
 
                 bars = ax.barh(vehicles, counts, color=Config.COLORS['accent_pink'])
-                ax.set_xlabel('Количество заявок', color='white')
-                ax.tick_params(colors='white')
-                ax.spines['bottom'].set_color('white')
-                ax.spines['left'].set_color('white')
+                tc = Config.COLORS['text_secondary']
+                bc = Config.COLORS['border']
+                ax.set_xlabel('Количество заявок', color=tc)
+                ax.tick_params(colors=tc)
+                ax.spines['bottom'].set_color(bc)
+                ax.spines['left'].set_color(bc)
                 ax.spines['top'].set_visible(False)
                 ax.spines['right'].set_visible(False)
 
@@ -3145,11 +3132,6 @@ class MainWindow(QMainWindow):
 
         # Кнопка сохранения
         save_btn = QPushButton("💾 Сохранить настройки")
-        save_btn.setStyleSheet(f"""
-            QPushButton {{ background-color: {Config.COLORS['accent_cyan']}; color: {Config.COLORS['bg_primary']}; 
-                         border: none; border-radius: 8px; padding: 12px 24px; font-weight: bold; font-size: 14px; }}
-            QPushButton:hover {{ background-color: {Config.COLORS['accent_purple']}; }}
-        """)
         save_btn.clicked.connect(self._save_settings)
         layout.addWidget(save_btn, alignment=Qt.AlignmentFlag.AlignRight)
 
@@ -3164,13 +3146,16 @@ class MainWindow(QMainWindow):
         """Изменение темы приложения"""
         theme = 'dark' if index == 0 else 'light'
         ThemeManager.apply_theme(theme)
-        
-        # Перезагружаем стили
-        self.setStyleSheet(Styles.get_main_stylesheet())
-        
-        theme_name = 'темную' if theme == 'dark' else 'светлую'
-        QMessageBox.information(self, "Информация", 
-                              f"Тема изменена на {theme_name}. Перезапустите приложение для полного применения изменений.")
+        self._save_settings()
+        theme_name = 'тёмную' if theme == 'dark' else 'светлую'
+        reply = QMessageBox.question(
+            self, "Применить тему",
+            f"Тема изменена на {theme_name}.\n\nДля полного применения необходим перезапуск. Перезапустить сейчас?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            QApplication.instance().quit()
+            subprocess.Popen([sys.executable] + sys.argv)
 
     def _load_settings(self):
         """Загрузка настроек пользователя"""
@@ -3835,6 +3820,16 @@ def main():
 
         # Если авторизация успешна, открываем главное окно
         if current_user[0]:
+            # Загружаем сохранённую тему до создания UI
+            try:
+                saved = db.execute_one(
+                    "SELECT theme FROM user_settings WHERE user_id = ?",
+                    (current_user[0]['id'],)
+                )
+                if saved and saved.get('theme') == 'light':
+                    ThemeManager.apply_theme('light')
+            except Exception:
+                pass
             main_window = MainWindow(db, current_user[0])
             main_window.show()
             result = app.exec()
