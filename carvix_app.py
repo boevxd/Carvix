@@ -1057,6 +1057,8 @@ class Database:
                    VALUES (?, ?, ?, ?, ?, ?)""",
                 (name, contact, phone, email, address, inn))
 
+        self.connection.commit()  # Commit vehicles/suppliers/parts before repair requests (FK constraints)
+
         # Запчасти
         parts = [
             ('OIL-5W30-4L', 'Масло моторное 5W-30 4л', 'Масла и жидкости', 1, 2500, 50, 10, 'Полка A1'),
@@ -1084,6 +1086,8 @@ class Database:
             self.cursor.execute("""INSERT INTO parts (part_number, name, description, category, supplier_id, price, quantity, min_quantity, location)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (part_num, name, name, category, supplier_id, price, qty, min_qty, location))
+
+        self.connection.commit()  # Commit parts before creating repair requests
 
         # Тестовые пользователи добавляются через _ensure_dev_users() при каждом старте
 
@@ -1129,7 +1133,7 @@ class Database:
                     request_number, vehicle_id, created_by, assigned_to,
                     defect_category_id, repair_type_id, description, priority, status,
                     estimated_cost, actual_cost, created_at, accepted_at, started_at, completed_at
-                ) VALUES (?, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, 0, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 request_number, vehicle_id,
                 defect_cat_id, repair_type_id, description, priority, status,
