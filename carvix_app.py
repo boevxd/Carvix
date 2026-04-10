@@ -1200,8 +1200,8 @@ class LoginWindow(QMainWindow):
         super().__init__()
         self.db = db
         self.setWindowTitle(Config.APP_NAME)
-        self.setMinimumSize(450, 550)
-        self.setFixedSize(500, 700)
+        self.setMinimumSize(820, 540)
+        self.setFixedSize(860, 580)
         
         # Устанавливаем иконку окна
         if os.path.exists('img.png'):
@@ -1259,113 +1259,153 @@ class LoginWindow(QMainWindow):
         self.move(x, y)
 
     def _setup_ui(self):
+        c = Config.COLORS
+        accent = c.get('accent', '#6366F1')
+        accent_d = c.get('accent_dark', '#4F46E5')
+
         central_widget = QWidget()
         central_widget.setObjectName("loginCentral")
         self.setCentralWidget(central_widget)
-        main_layout = QVBoxLayout(central_widget)
-        main_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_layout.setSpacing(0)
-        main_layout.setContentsMargins(40, 40, 40, 40)
+        root = QHBoxLayout(central_widget)
+        root.setSpacing(0)
+        root.setContentsMargins(0, 0, 0, 0)
 
-        # Логотип
-        logo_container = QWidget()
-        logo_layout = QVBoxLayout(logo_container)
-        logo_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo_layout.setSpacing(8)
+        # ── LEFT brand panel ─────────────────────────────────────────
+        left = QWidget()
+        left.setFixedWidth(300)
+        left.setStyleSheet(f"background-color: {accent};")
+        left_layout = QVBoxLayout(left)
+        left_layout.setContentsMargins(40, 50, 40, 40)
+        left_layout.setSpacing(0)
+        left_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        logo_label = QLabel()
         if os.path.exists('img.png'):
-            pixmap = QPixmap('img.png')
-            scaled_pixmap = pixmap.scaled(120, 120, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            logo_label.setPixmap(scaled_pixmap)
-        else:
-            logo_label.setText("🚗")
-            logo_label.setStyleSheet("font-size: 80px; background: transparent;")
-        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo_layout.addWidget(logo_label)
+            brand_logo = QLabel()
+            px = QPixmap('img.png').scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio,
+                                           Qt.TransformationMode.SmoothTransformation)
+            brand_logo.setPixmap(px)
+            brand_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            brand_logo.setStyleSheet("background: transparent;")
+            left_layout.addWidget(brand_logo)
+            left_layout.addSpacing(20)
 
-        subtitle_label = QLabel("Fleet Management System")
-        subtitle_label.setStyleSheet(f"font-size: 14px; color: {Config.COLORS['text_secondary']}; background: transparent;")
-        subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo_layout.addWidget(subtitle_label)
+        brand_name = QLabel("CARVIX")
+        brand_name.setStyleSheet(
+            "font-size: 30px; font-weight: 800; color: #FFFFFF;"
+            " letter-spacing: 5px; background: transparent;"
+        )
+        brand_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        left_layout.addWidget(brand_name)
 
-        main_layout.addWidget(logo_container)
-        main_layout.addSpacing(30)
+        left_layout.addSpacing(12)
+        tagline = QLabel("Fleet Management\nSystem")
+        tagline.setStyleSheet(
+            "font-size: 13px; color: rgba(255,255,255,0.70);"
+            " background: transparent; line-height: 1.5;"
+        )
+        tagline.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        left_layout.addWidget(tagline)
 
-        # Форма авторизации
-        form_card = Card()
-        form_card.setObjectName("loginCard")
-        form_card.setFixedWidth(380)
-        form_layout = QVBoxLayout(form_card)
-        form_layout.setSpacing(14)
-        form_layout.setContentsMargins(35, 30, 35, 30)
+        left_layout.addStretch()
 
-        auth_title = QLabel("Вход в систему")
-        auth_title.setObjectName("loginTitle")
-        auth_title.setStyleSheet("background: transparent;")
-        auth_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        form_layout.addWidget(auth_title)
+        # Feature list
+        for feat in ["📊  Аналитика и отчёты", "🔧  Управление ремонтами", "🚗  Контроль автопарка"]:
+            fl = QLabel(feat)
+            fl.setStyleSheet(
+                "font-size: 12px; color: rgba(255,255,255,0.80);"
+                " background: transparent; padding: 3px 0;"
+            )
+            left_layout.addWidget(fl)
 
-        form_layout.addSpacing(16)
+        left_layout.addSpacing(30)
+        ver = QLabel(f"v{Config.APP_VERSION}")
+        ver.setStyleSheet("font-size: 10px; color: rgba(255,255,255,0.45); background: transparent;")
+        ver.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        left_layout.addWidget(ver)
+        root.addWidget(left)
 
-        # Логин
-        login_label = QLabel("Логин")
-        login_label.setObjectName("loginLabel")
-        login_label.setStyleSheet("background: transparent;")
-        form_layout.addWidget(login_label)
+        # ── RIGHT form panel ─────────────────────────────────────────
+        right = QWidget()
+        right.setStyleSheet(f"background-color: {c['bg_primary']};")
+        right_layout = QVBoxLayout(right)
+        right_layout.setContentsMargins(60, 0, 60, 0)
+        right_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        right_layout.setSpacing(0)
+
+        welcome = QLabel("Добро пожаловать")
+        welcome.setStyleSheet(
+            f"font-size: 24px; font-weight: 700; color: {c['text_primary']}; background: transparent;"
+        )
+        right_layout.addWidget(welcome)
+
+        sub = QLabel("Войдите в систему управления автопарком")
+        sub.setStyleSheet(
+            f"font-size: 13px; color: {c['text_muted']}; background: transparent;"
+        )
+        right_layout.addWidget(sub)
+        right_layout.addSpacing(32)
+
+        # Login field
+        login_lbl = QLabel("Логин")
+        login_lbl.setObjectName("loginLabel")
+        login_lbl.setStyleSheet("background: transparent;")
+        right_layout.addWidget(login_lbl)
+        right_layout.addSpacing(6)
 
         self.login_input = QLineEdit()
         self.login_input.setObjectName("loginInput")
         self.login_input.setPlaceholderText("Введите логин")
         self.login_input.setText("admin")
-        self.login_input.setMinimumHeight(50)
-        form_layout.addWidget(self.login_input)
+        self.login_input.setMinimumHeight(46)
+        right_layout.addWidget(self.login_input)
+        right_layout.addSpacing(14)
 
-        # Пароль
-        password_label = QLabel("Пароль")
-        password_label.setObjectName("loginLabel")
-        password_label.setStyleSheet("background: transparent;")
-        form_layout.addWidget(password_label)
+        # Password field
+        pwd_lbl = QLabel("Пароль")
+        pwd_lbl.setObjectName("loginLabel")
+        pwd_lbl.setStyleSheet("background: transparent;")
+        right_layout.addWidget(pwd_lbl)
+        right_layout.addSpacing(6)
 
         self.password_input = QLineEdit()
         self.password_input.setObjectName("loginInput")
         self.password_input.setPlaceholderText("Введите пароль")
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.password_input.setText("admin")
-        self.password_input.setMinimumHeight(50)
-        form_layout.addWidget(self.password_input)
+        self.password_input.setMinimumHeight(46)
+        self.password_input.returnPressed.connect(self._handle_login)
+        right_layout.addWidget(self.password_input)
+        right_layout.addSpacing(24)
 
-        form_layout.addSpacing(16)
-
-        # Кнопка входа
-        self.login_button = QPushButton("Войти")
+        # Login button
+        self.login_button = QPushButton("Войти в систему")
         self.login_button.setObjectName("loginPrimary")
         self.login_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.login_button.setFixedHeight(42)
+        self.login_button.setFixedHeight(46)
         self.login_button.setDefault(True)
         self.login_button.setAutoDefault(True)
         self.login_button.setStyleSheet(self._get_login_primary_button_stylesheet())
         self.login_button.clicked.connect(self._handle_login)
-        form_layout.addWidget(self.login_button)
+        right_layout.addWidget(self.login_button)
+        right_layout.addSpacing(16)
 
-        form_layout.addSpacing(5)
-
-        # Тестовые данные
-        test_info = QLabel()
-        test_info.setTextFormat(Qt.TextFormat.RichText)
-        test_info.setText(
-            "<div style='text-align: center; line-height: 1.6;'>"
-            "<span style='color: #7E879C; font-size: 11px;'>Тестовые логины (пароль: <b style='color: #00FFFF;'>123456</b>)</span><br>"
-            "<span style='color: #A3ACC2; font-size: 11px;'><b style='color: #00FFFF;'>admin</b> • <b style='color: #00FFFF;'>director</b> • <b style='color: #00FFFF;'>mechanic1</b></span>"
-            "</div>"
+        # Test credentials hint
+        hint = QLabel(
+            f"<div style='line-height:1.6'>"
+            f"<span style='color:{c['text_muted']};font-size:11px'>"
+            f"Тестовые логины (пароль: "
+            f"<b style='color:{accent}'>123456</b>)</span><br>"
+            f"<span style='color:{c['text_secondary']};font-size:11px'>"
+            f"<b style='color:{accent}'>admin</b>  •  "
+            f"<b style='color:{accent}'>director</b>  •  "
+            f"<b style='color:{accent}'>mechanic1</b></span></div>"
         )
-        test_info.setWordWrap(True)
-        test_info.setStyleSheet(f"background: transparent; padding: 8px 0;")
-        test_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        form_layout.addWidget(test_info)
+        hint.setTextFormat(Qt.TextFormat.RichText)
+        hint.setWordWrap(True)
+        hint.setStyleSheet("background: transparent;")
+        right_layout.addWidget(hint)
 
-        main_layout.addWidget(form_card, 0, Qt.AlignmentFlag.AlignCenter)
-        main_layout.addStretch()
+        root.addWidget(right, 1)
 
     def _handle_login(self):
         username = self.login_input.text().strip()
@@ -1456,148 +1496,185 @@ class MainWindow(QMainWindow):
         self._create_pages()
 
     def _create_sidebar(self):
+        c = Config.COLORS
+        accent = c.get('accent', '#6366F1')
+        err = c.get('error', '#EF4444')
+
         sidebar = QWidget()
-        sidebar.setFixedWidth(248)
+        sidebar.setFixedWidth(240)
         sidebar.setStyleSheet(
-            f"QWidget {{ background-color: {Config.COLORS['bg_secondary']};"
-            f" border-right: 1px solid {Config.COLORS['border']}; }}"
+            f"QWidget {{ background-color: {c['bg_secondary']};"
+            f" border-right: 1px solid {c['border']}; }}"
         )
         layout = QVBoxLayout(sidebar)
-        layout.setSpacing(2)
-        layout.setContentsMargins(12, 20, 12, 20)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-        # Логотип
-        logo_container = QWidget()
-        logo_container.setStyleSheet("background: transparent;")
-        logo_layout = QHBoxLayout(logo_container)
-        logo_layout.setContentsMargins(0, 0, 0, 0)
-        logo_layout.setSpacing(10)
-        
+        # ── Logo strip ────────────────────────────────────────────────
+        logo_strip = QWidget()
+        logo_strip.setFixedHeight(60)
+        logo_strip.setStyleSheet(
+            f"QWidget {{ background-color: {c['bg_secondary']};"
+            f" border-bottom: 1px solid {c['border']}; }}"
+        )
+        logo_row = QHBoxLayout(logo_strip)
+        logo_row.setContentsMargins(16, 0, 16, 0)
+        logo_row.setSpacing(10)
         if os.path.exists('img.png'):
             logo_img = QLabel()
-            pixmap = QPixmap('img.png')
-            scaled_pixmap = pixmap.scaled(40, 40, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-            logo_img.setPixmap(scaled_pixmap)
-            logo_layout.addWidget(logo_img)
-        
+            px = QPixmap('img.png').scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio,
+                                           Qt.TransformationMode.SmoothTransformation)
+            logo_img.setPixmap(px)
+            logo_img.setStyleSheet("background: transparent;")
+            logo_row.addWidget(logo_img)
         logo_text = QLabel("CARVIX")
         logo_text.setStyleSheet(
-            f"font-size: 17px; font-weight: 700; color: {Config.COLORS['text_primary']};"
-            f" background: transparent; letter-spacing: 2.5px;"
+            f"font-size: 16px; font-weight: 800; color: {c['text_primary']};"
+            f" letter-spacing: 3px; background: transparent;"
         )
-        logo_layout.addWidget(logo_text)
-        logo_layout.addStretch()
-        
-        layout.addWidget(logo_container)
+        logo_row.addWidget(logo_text)
+        logo_row.addStretch()
+        layout.addWidget(logo_strip)
 
-        # Инфо о пользователе
-        # User info block
-        user_block = QFrame()
-        user_block.setStyleSheet(
-            f"QFrame {{ background-color: {Config.COLORS.get('bg_elevated','#1A1A2A')};"
-            f" border-radius: 10px; border: 1px solid {Config.COLORS['border']}; }}"
+        # ── User info block ───────────────────────────────────────────
+        user_block = QWidget()
+        user_block.setStyleSheet("background: transparent;")
+        user_layout = QHBoxLayout(user_block)
+        user_layout.setContentsMargins(16, 14, 16, 12)
+        user_layout.setSpacing(10)
+
+        avatar = QLabel(self.current_user.get('full_name', 'U')[0].upper())
+        avatar.setFixedSize(36, 36)
+        avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        avatar.setStyleSheet(
+            f"background-color: {accent}25; color: {accent}; font-size: 15px;"
+            f" font-weight: 700; border-radius: 18px; border: 1px solid {accent}40;"
         )
-        user_block_layout = QVBoxLayout(user_block)
-        user_block_layout.setContentsMargins(12, 10, 12, 10)
-        user_block_layout.setSpacing(2)
-        user_info = QLabel(self.current_user.get('full_name', ''))
-        user_info.setStyleSheet(
-            f"color: {Config.COLORS['text_primary']}; font-size: 13px;"
-            f" font-weight: 600; background: transparent;"
+        user_layout.addWidget(avatar)
+
+        text_col = QVBoxLayout()
+        text_col.setSpacing(1)
+        name_lbl = QLabel(self.current_user.get('full_name', ''))
+        name_lbl.setStyleSheet(
+            f"color: {c['text_primary']}; font-size: 13px; font-weight: 600; background: transparent;"
         )
-        user_block_layout.addWidget(user_info)
-        role_label = QLabel(self.role)
-        role_label.setStyleSheet(
-            f"color: {Config.COLORS['text_muted']}; font-size: 11px; background: transparent;"
+        role_lbl = QLabel(self.role)
+        role_lbl.setStyleSheet(
+            f"color: {c['text_muted']}; font-size: 11px; background: transparent;"
         )
-        user_block_layout.addWidget(role_label)
-        layout.addWidget(user_block)
-        layout.addSpacing(16)
-        
-        # Notification pill
-        notifications_card = QFrame()
-        c_notif = Config.COLORS
-        accent = c_notif.get('accent', '#6366F1')
-        notifications_card.setStyleSheet(
-            f"QFrame {{ background-color: {accent}15; border-radius: 8px;"
-            f" border: 1px solid {accent}30; }}"
+        text_col.addWidget(name_lbl)
+        text_col.addWidget(role_lbl)
+        user_layout.addLayout(text_col)
+        user_layout.addStretch()
+
+        # Notification badge
+        notif_badge = QFrame()
+        notif_badge.setStyleSheet(
+            f"QFrame {{ background-color: {accent}18; border-radius: 10px; border: 1px solid {accent}30; }}"
         )
-        notif_layout = QHBoxLayout(notifications_card)
-        notif_layout.setContentsMargins(10, 7, 10, 7)
-        notif_layout.setSpacing(6)
-        notif_icon = QLabel("🔔")
-        notif_icon.setStyleSheet("font-size: 13px; background: transparent;")
-        notif_layout.addWidget(notif_icon)
+        nb_layout = QHBoxLayout(notif_badge)
+        nb_layout.setContentsMargins(7, 3, 7, 3)
+        nb_layout.setSpacing(3)
+        nb_icon = QLabel("🔔")
+        nb_icon.setStyleSheet("font-size: 11px; background: transparent;")
+        nb_layout.addWidget(nb_icon)
         self.notif_count_label = QLabel("0")
         self.notif_count_label.setStyleSheet(
-            f"color: {Config.COLORS['text_primary']}; font-size: 13px;"
-            f" font-weight: 700; background: transparent;"
+            f"color: {accent}; font-size: 11px; font-weight: 700; background: transparent;"
         )
-        notif_layout.addWidget(self.notif_count_label)
-        notif_text = QLabel("уведомлений")
-        notif_text.setStyleSheet(
-            f"color: {Config.COLORS['text_muted']}; font-size: 11px; background: transparent;"
-        )
-        notif_layout.addWidget(notif_text)
-        notif_layout.addStretch()
-        layout.addWidget(notifications_card)
-        layout.addSpacing(8)
+        nb_layout.addWidget(self.notif_count_label)
+        user_layout.addWidget(notif_badge)
 
-        # Кнопки меню в зависимости от роли
+        layout.addWidget(user_block)
+
+        # Divider
+        div = QFrame()
+        div.setFrameShape(QFrame.Shape.HLine)
+        div.setStyleSheet(f"color: {c['border']}; background: {c['border']}; max-height: 1px;")
+        layout.addWidget(div)
+
+        # ── Navigation ────────────────────────────────────────────────
+        nav_scroll = QScrollArea()
+        nav_scroll.setWidgetResizable(True)
+        nav_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        nav_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        nav_scroll.setStyleSheet("background: transparent; border: none;")
+
+        nav_widget = QWidget()
+        nav_widget.setStyleSheet("background: transparent;")
+        nav_layout = QVBoxLayout(nav_widget)
+        nav_layout.setSpacing(1)
+        nav_layout.setContentsMargins(8, 8, 8, 8)
+
         self.menu_buttons = {}
-        
-        # Обновляем счетчик уведомлений
         self._update_notifications_count()
 
-        # Общие пункты для всех
+        def section(text):
+            lbl = QLabel(text)
+            lbl.setStyleSheet(
+                f"color: {c['text_muted']}; font-size: 10px; font-weight: 700;"
+                f" letter-spacing: 1.2px; background: transparent;"
+                f" padding: 10px 8px 4px 8px;"
+            )
+            nav_layout.addWidget(lbl)
+
+        # Main navigation
+        section("НАВИГАЦИЯ")
         if self.role in ['Администратор', 'Директор', 'Аналитик', 'Главный механик', 'Диспетчер']:
-            self._add_menu_button(layout, "dashboard", "📊", "Дашборд")
-
-        # Заявки
+            self._add_menu_button(nav_layout, "dashboard", "📊", "Дашборд")
         if self.role in ['Администратор', 'Главный механик', 'Диспетчер']:
-            self._add_menu_button(layout, "requests", "🔧", "Заявки на ремонт")
-        elif self.role == 'Механик':
-            self._add_menu_button(layout, "my_requests", "🔧", "Мои заявки")
-        elif self.role == 'Пользователь':
-            self._add_menu_button(layout, "my_requests", "📋", "Мои заявки")
-
-        # ТО
+            self._add_menu_button(nav_layout, "requests", "🔧", "Заявки на ремонт")
+        elif self.role in ['Механик', 'Пользователь']:
+            icon = "🔧" if self.role == 'Механик' else "📋"
+            self._add_menu_button(nav_layout, "my_requests", icon, "Мои заявки")
         if self.role in ['Администратор', 'Главный механик', 'Диспетчер']:
-            self._add_menu_button(layout, "maintenance", "🔩", "Техническое обслуживание")
-
-        # Автопарк
+            self._add_menu_button(nav_layout, "maintenance", "🔩", "Техобслуживание")
         if self.role in ['Администратор', 'Главный механик', 'Диспетчер', 'Аналитик']:
-            self._add_menu_button(layout, "vehicles", "🚗", "Автопарк")
+            self._add_menu_button(nav_layout, "vehicles", "🚗", "Автопарк")
 
-        # Аналитика
+        # Reports
         if self.role in ['Администратор', 'Директор', 'Аналитик']:
-            self._add_menu_button(layout, "analytics", "📈", "Аналитика")
+            section("АНАЛИТИКА")
+            self._add_menu_button(nav_layout, "analytics", "📈", "Аналитика")
 
-        # Справочники (админ)
+        # Admin
         if self.role == 'Администратор':
-            self._add_menu_button(layout, "users", "👥", "Пользователи")
-            self._add_menu_button(layout, "reference", "📚", "Справочники")
-
-        # Запчасти
+            section("УПРАВЛЕНИЕ")
+            self._add_menu_button(nav_layout, "users", "👥", "Пользователи")
+            self._add_menu_button(nav_layout, "reference", "📚", "Справочники")
         if self.role in ['Администратор', 'Главный механик']:
-            self._add_menu_button(layout, "parts", "⚙️", "Запчасти")
+            self._add_menu_button(nav_layout, "parts", "⚙️", "Запчасти")
 
-        layout.addStretch()
+        nav_layout.addStretch()
+        nav_scroll.setWidget(nav_widget)
+        layout.addWidget(nav_scroll, 1)
 
-        # Профиль и настройки
-        self._add_menu_button(layout, "profile", "👤", "Профиль")
-        self._add_menu_button(layout, "settings", "⚙️", "Настройки")
-        
-        layout.addSpacing(10)
+        # Divider
+        div2 = QFrame()
+        div2.setFrameShape(QFrame.Shape.HLine)
+        div2.setStyleSheet(f"color: {c['border']}; background: {c['border']}; max-height: 1px;")
+        layout.addWidget(div2)
 
-        # Выход
-        logout_btn = QPushButton("🚪  Выход")
-        logout_btn.setStyleSheet(f"""
-            QPushButton {{ background-color: {Config.COLORS['bg_card']}; color: {Config.COLORS['text_secondary']}; border: 2px solid {Config.COLORS['border']}; border-radius: 12px; padding: 14px; text-align: left; font-weight: 600; font-size: 15px; }}
-            QPushButton:hover {{ background-color: {Config.COLORS['error']}22; color: {Config.COLORS['error']}; border-color: {Config.COLORS['error']}; }}
-        """)
+        # ── Bottom section ────────────────────────────────────────────
+        bottom = QWidget()
+        bottom.setStyleSheet("background: transparent;")
+        bottom_layout = QVBoxLayout(bottom)
+        bottom_layout.setSpacing(1)
+        bottom_layout.setContentsMargins(8, 8, 8, 8)
+
+        self._add_menu_button(bottom_layout, "profile", "👤", "Профиль")
+        self._add_menu_button(bottom_layout, "settings", "⚙️", "Настройки")
+
+        logout_btn = QPushButton("🚪  Выход из системы")
+        logout_btn.setStyleSheet(
+            f"QPushButton {{ background-color: transparent; color: {c['text_secondary']};"
+            f" border: none; border-radius: 8px; padding: 9px 14px; text-align: left;"
+            f" font-size: 13px; font-weight: 500; min-height: 38px; }}"
+            f" QPushButton:hover {{ background-color: {err}18; color: {err}; }}"
+        )
         logout_btn.clicked.connect(self._logout)
-        layout.addWidget(logout_btn)
+        bottom_layout.addWidget(logout_btn)
+        layout.addWidget(bottom)
 
         return sidebar
 
@@ -1703,107 +1780,179 @@ class MainWindow(QMainWindow):
     # =============================================================================
 
     def _create_dashboard_page(self):
+        c = Config.COLORS
+        accent = c.get('accent', '#6366F1')
         page = QWidget()
-        layout = QVBoxLayout(page)
-        layout.setSpacing(16)
-        layout.setContentsMargins(24, 24, 24, 24)
+        page.setStyleSheet(f"background-color: {c['bg_primary']};")
+        main_layout = QVBoxLayout(page)
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Заголовок
-        header = QLabel("📊 Обзор автопарка")
-        header.setStyleSheet(f"font-size: 24px; font-weight: 700; color: {Config.COLORS['text_primary']}; background: transparent;")
-        layout.addWidget(header)
-        layout.addSpacing(20)
+        # ── Greeting header bar ──────────────────────────────────────
+        header_bar = QWidget()
+        header_bar.setFixedHeight(76)
+        header_bar.setStyleSheet(
+            f"QWidget {{ background-color: {c['bg_secondary']};"
+            f" border-bottom: 1px solid {c['border']}; }}"
+        )
+        hdr = QHBoxLayout(header_bar)
+        hdr.setContentsMargins(28, 0, 28, 0)
 
-        # Метрики
-        metrics_layout = QHBoxLayout()
-        metrics_layout.setSpacing(16)
+        now = datetime.now()
+        hour = now.hour
+        grt = "Доброе утро" if hour < 12 else ("Добрый день" if hour < 18 else "Добрый вечер")
+        name_part = self.current_user.get('full_name', '').split()[0] if self.current_user.get('full_name') else ''
+        greet_lbl = QLabel(f"{grt}{(', ' + name_part) if name_part else ''}!")
+        greet_lbl.setStyleSheet(
+            f"font-size: 19px; font-weight: 700; color: {c['text_primary']}; background: transparent;"
+        )
+        date_lbl = QLabel(now.strftime("%d %B %Y, %A"))
+        date_lbl.setStyleSheet(
+            f"font-size: 12px; color: {c['text_muted']}; background: transparent;"
+        )
+        greet_col = QVBoxLayout()
+        greet_col.setSpacing(2)
+        greet_col.addWidget(greet_lbl)
+        greet_col.addWidget(date_lbl)
+        hdr.addLayout(greet_col)
+        hdr.addStretch()
 
-        # Получаем данные для метрик
+        refresh_btn = QPushButton("↻  Обновить")
+        refresh_btn.setObjectName("secondary")
+        refresh_btn.setFixedHeight(34)
+        refresh_btn.clicked.connect(self._update_dashboard)
+        hdr.addWidget(refresh_btn)
+        main_layout.addWidget(header_bar)
+
+        # ── Scrollable content ──────────────────────────────────────
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("background: transparent; border: none;")
+        content_w = QWidget()
+        content_w.setStyleSheet(f"background-color: {c['bg_primary']};")
+        layout = QVBoxLayout(content_w)
+        layout.setSpacing(20)
+        layout.setContentsMargins(28, 24, 28, 24)
+
+        # ── KPI cards ───────────────────────────────────────────────
         total_vehicles = len(self.db.execute("SELECT id FROM vehicles"))
-        active_repairs = len(self.db.execute("SELECT id FROM repair_requests WHERE status IN ('Новая', 'Принята', 'В работе')"))
+        active_repairs = len(self.db.execute(
+            "SELECT id FROM repair_requests WHERE status IN ('Новая', 'Принята', 'В работе')"
+        ))
         completed_month = len(self.db.execute("""
-            SELECT id FROM repair_requests 
-            WHERE status = 'Закрыта' 
+            SELECT id FROM repair_requests
+            WHERE status = 'Закрыта'
             AND strftime('%Y-%m', closed_at) = strftime('%Y-%m', 'now')
         """))
-
-        # Средний пробег
         avg_mileage = self.db.execute_one("SELECT AVG(mileage) FROM vehicles")[0] or 0
 
-        # Создаем карточки метрик
         self.metric_cards = {}
+        kpi_layout = QHBoxLayout()
+        kpi_layout.setSpacing(14)
+        cards_data = [
+            ('vehicles', "АВТОМОБИЛЕЙ",  str(total_vehicles),                         "Всего в парке",   "🚗", accent),
+            ('repairs',  "В РЕМОНТЕ",    str(active_repairs),                          "Активных заявок", "🔧", c.get('error', '#EF4444')),
+            ('completed',"ВЫПОЛНЕНО",    str(completed_month),                         "За этот месяц",   "✅", c.get('success', '#10B981')),
+            ('mileage',  "ПРОБЕГ",       f"{int(avg_mileage):,} км".replace(',', ' '), "Средний по парку","📊", c.get('accent_purple', '#8B5CF6')),
+        ]
+        for key, title, val, sub, icon, color in cards_data:
+            card = MetricCard(title, val, sub, icon, color)
+            kpi_layout.addWidget(card)
+            self.metric_cards[key] = card
+        layout.addLayout(kpi_layout)
 
-        card1 = MetricCard("Автомобилей", str(total_vehicles), "Всего в парке", "🚗", Config.COLORS['accent_cyan'])
-        metrics_layout.addWidget(card1)
-        self.metric_cards['vehicles'] = card1
+        # ── Two-column content area ──────────────────────────────────
+        cols = QHBoxLayout()
+        cols.setSpacing(16)
 
-        card2 = MetricCard("В ремонте", str(active_repairs), "Активных заявок", "🔧", Config.COLORS['accent_pink'])
-        metrics_layout.addWidget(card2)
-        self.metric_cards['repairs'] = card2
+        # Left: recent requests table
+        table_card = Card()
+        table_card_layout = QVBoxLayout(table_card)
+        table_card_layout.setContentsMargins(18, 16, 18, 16)
+        table_card_layout.setSpacing(12)
 
-        card3 = MetricCard("Выполнено", str(completed_month), "За текущий месяц", "✅", Config.COLORS['accent_green'])
-        metrics_layout.addWidget(card3)
-        self.metric_cards['completed'] = card3
-
-        card4 = MetricCard("Средний пробег", f"{int(avg_mileage):,} км".replace(',', ' '), "По автопарку", "📊", Config.COLORS['accent_purple'])
-        metrics_layout.addWidget(card4)
-        self.metric_cards['mileage'] = card4
-
-        layout.addLayout(metrics_layout)
-
-        # Графики и таблица
-        content_splitter = QSplitter(Qt.Orientation.Horizontal)
-
-        # Левая часть - графики
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        left_layout.setSpacing(16)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-
-        # График статусов
-        status_chart = self._create_status_chart()
-        left_layout.addWidget(status_chart)
-
-        # График заявок по месяцам
-        requests_chart = self._create_requests_chart()
-        left_layout.addWidget(requests_chart)
-
-        content_splitter.addWidget(left_widget)
-
-        # Правая часть - таблица последних заявок
-        right_widget = QWidget()
-        right_layout = QVBoxLayout(right_widget)
-        right_layout.setSpacing(16)
-        right_layout.setContentsMargins(0, 0, 0, 0)
-
-        recent_label = QLabel("📋 Последние заявки")
-        recent_label.setStyleSheet(f"font-size: 18px; font-weight: 600; color: {Config.COLORS['text_primary']}; background: transparent;")
-        right_layout.addWidget(recent_label)
+        tbl_hdr = QHBoxLayout()
+        tbl_title = QLabel("Последние заявки")
+        tbl_title.setStyleSheet(
+            f"font-size: 14px; font-weight: 700; color: {c['text_primary']}; background: transparent;"
+        )
+        tbl_hdr.addWidget(tbl_title)
+        tbl_hdr.addStretch()
+        view_all = QPushButton("Все заявки →")
+        view_all.setObjectName("secondary")
+        view_all.setFixedHeight(28)
+        view_all.clicked.connect(
+            lambda: self._switch_page("requests" if "requests" in self.menu_buttons else "my_requests")
+        )
+        tbl_hdr.addWidget(view_all)
+        table_card_layout.addLayout(tbl_hdr)
 
         self.recent_requests_table = QTableWidget()
         self.recent_requests_table.setColumnCount(5)
         self.recent_requests_table.setHorizontalHeaderLabels(["Номер", "Авто", "Статус", "Дата", "Приоритет"])
         self.recent_requests_table.horizontalHeader().setStretchLastSection(True)
         self.recent_requests_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        self.recent_requests_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.recent_requests_table.verticalHeader().setVisible(False)
         self.recent_requests_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.recent_requests_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.recent_requests_table.setWordWrap(True)
-        right_layout.addWidget(self.recent_requests_table)
+        self.recent_requests_table.setAlternatingRowColors(True)
+        table_card_layout.addWidget(self.recent_requests_table)
+        cols.addWidget(table_card, 3)
 
-        content_splitter.addWidget(right_widget)
-        content_splitter.setSizes([350, 650])
+        # Right: status chart + quick breakdown
+        right_col = QVBoxLayout()
+        right_col.setSpacing(14)
 
-        layout.addWidget(content_splitter, 1)
+        status_chart = self._create_status_chart()
+        right_col.addWidget(status_chart)
 
-        # Заполняем таблицу
+        # Vehicle status breakdown card
+        breakdown_card = Card()
+        bk_layout = QVBoxLayout(breakdown_card)
+        bk_layout.setContentsMargins(18, 14, 18, 14)
+        bk_layout.setSpacing(10)
+        bk_title = QLabel("Состояние автопарка")
+        bk_title.setStyleSheet(
+            f"font-size: 13px; font-weight: 700; color: {c['text_primary']}; background: transparent;"
+        )
+        bk_layout.addWidget(bk_title)
+        try:
+            for row in self.db.execute("SELECT status, COUNT(*) as cnt FROM vehicles GROUP BY status"):
+                row_w = QWidget()
+                row_w.setStyleSheet("background: transparent;")
+                row_l = QHBoxLayout(row_w)
+                row_l.setContentsMargins(0, 0, 0, 0)
+                row_l.setSpacing(8)
+                dot = QLabel("●")
+                sc = Config.STATUS_COLORS.get(row['status'], c['text_muted'])
+                dot.setStyleSheet(f"color: {sc}; font-size: 10px; background: transparent;")
+                row_l.addWidget(dot)
+                nm = QLabel(row['status'])
+                nm.setStyleSheet(f"color: {c['text_secondary']}; font-size: 13px; background: transparent;")
+                row_l.addWidget(nm)
+                row_l.addStretch()
+                cnt = QLabel(str(row['cnt']))
+                cnt.setStyleSheet(
+                    f"color: {c['text_primary']}; font-size: 13px; font-weight: 700; background: transparent;"
+                )
+                row_l.addWidget(cnt)
+                bk_layout.addWidget(row_w)
+        except Exception:
+            pass
+        right_col.addWidget(breakdown_card)
+        right_col.addStretch()
+        cols.addLayout(right_col, 2)
+
+        layout.addLayout(cols)
+        layout.addStretch()
+        scroll.setWidget(content_w)
+        main_layout.addWidget(scroll, 1)
+
         self._load_recent_requests()
-
-        # Таймер обновления
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self._update_dashboard)
-        self.update_timer.start(30000)  # Обновление каждые 30 секунд
-
+        self.update_timer.start(30000)
         return page
 
     def _create_status_chart(self):
