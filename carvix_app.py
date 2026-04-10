@@ -364,12 +364,16 @@ class FirebaseAuth:
 # =============================================================================
 # ЛОГИРОВАНИЕ
 # =============================================================================
+import os as _os
+_log_dir = _os.path.join(_os.environ.get('APPDATA', _os.path.expanduser('~')), 'Carvix')
+_os.makedirs(_log_dir, exist_ok=True)
+_log_path = _os.path.join(_log_dir, 'carvix_debug.log')
 
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('carvix_debug.log', encoding='utf-8'),
+        logging.FileHandler(_log_path, encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
