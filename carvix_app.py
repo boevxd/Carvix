@@ -3143,19 +3143,55 @@ class MainWindow(QMainWindow):
         return page
 
     def _change_theme(self, index):
-        """Изменение темы приложения"""
+        """Изменение темы без перезапуска"""
         theme = 'dark' if index == 0 else 'light'
         ThemeManager.apply_theme(theme)
-        self._save_settings()
-        theme_name = 'тёмную' if theme == 'dark' else 'светлую'
-        reply = QMessageBox.question(
-            self, "Применить тему",
-            f"Тема изменена на {theme_name}.\n\nДля полного применения необходим перезапуск. Перезапустить сейчас?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            QApplication.instance().quit()
-            subprocess.Popen([sys.executable] + sys.argv)
+        self._save_theme_silent(theme)
+        self._rebuild_ui()
+
+    def _save_theme_silent(self, theme):
+        """Сохранить тему в БД без UI-диалога"""
+        try:
+            existing = self.db.execute_one(
+                "SELECT id FROM user_settings WHERE user_id = ?",
+                (self.current_user['id'],)
+            )
+            if existing:
+                self.db.cursor.execute(
+                    "UPDATE user_settings SET theme = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?",
+                    (theme, self.current_user['id'])
+                )
+            else:
+                self.db.cursor.execute(
+                    "INSERT INTO user_settings (user_id, theme, notifications_enabled, email_notifications, auto_refresh) VALUES (?, ?, 1, 1, 1)",
+                    (self.current_user['id'], theme)
+                )
+            self.db.connection.commit()
+        except Exception as e:
+            logger.error(f"Error saving theme: {e}")
+
+    def _rebuild_ui(self):
+        """Перестроить UI с текущими цветами темы"""
+        current_idx = self.content_stack.currentIndex() if hasattr(self, 'content_stack') else 0
+        # Обновляем глобальный stylesheet
+        new_ss = Styles.get_main_stylesheet()
+        self.setStyleSheet(new_ss)
+        QApplication.instance().setStyleSheet(new_ss)
+        # Удаляем старый central widget
+        old = self.centralWidget()
+        if old:
+            old.hide()
+            old.setParent(None)
+            old.deleteLater()
+        # Перестраиваем
+        self._setup_ui()
+        # Восстанавливаем текущую страницу
+        if hasattr(self, 'content_stack') and self.content_stack.count() > 0:
+            self.content_stack.setCurrentIndex(
+                min(current_idx, self.content_stack.count() - 1)
+            )
+        if hasattr(self, 'notif_count_label'):
+            self._update_notifications_count()
 
     def _load_settings(self):
         """Загрузка настроек пользователя"""
@@ -3165,9 +3201,11 @@ class MainWindow(QMainWindow):
                 (self.current_user['id'],)
             )
             if settings:
-                # Устанавливаем значения
                 theme_index = 0 if settings['theme'] == 'dark' else 1
+                # Блокируем сигнал, чтобы не запустить _change_theme
+                self.theme_combo.blockSignals(True)
                 self.theme_combo.setCurrentIndex(theme_index)
+                self.theme_combo.blockSignals(False)
                 self.notifications_enabled_cb.setChecked(bool(settings['notifications_enabled']))
                 self.email_notifications_cb.setChecked(bool(settings['email_notifications']))
                 self.auto_refresh_cb.setChecked(bool(settings['auto_refresh']))
