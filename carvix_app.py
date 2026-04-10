@@ -422,6 +422,7 @@ class Database:
         self._migrate_firebase()
         self.seed_initial_data()
         self._clear_local_auth_users()
+        self._ensure_dev_users()
 
     def connect(self):
         try:
@@ -709,12 +710,51 @@ class Database:
         except Exception:
             pass  # Колонка уже существует
 
+    def _ensure_dev_users(self):
+        """Гарантирует наличие dev-аккаунтов в любой (в т.ч. уже существующей) БД."""
+        try:
+            from passlib.context import CryptContext as _CC
+            _crypt = _CC(schemes=['bcrypt'], deprecated='auto')
+        except ImportError:
+            _crypt = None
+
+        dev_users = [
+            ('admin',       'Администратор Системы', 'admin@carvix.ru',    'Admin123!',   'Администратор'),
+            ('director',    'Директор Компании',     'director@carvix.ru', 'Dir123!',     'Директор'),
+            ('chief',       'Главный Механик',       'chief@carvix.ru',    'Chief123!',   'Главный механик'),
+            ('mechanic',    'Механик Тестовый',      'mechanic@carvix.ru', 'Mech123!',    'Механик'),
+            ('dispatcher',  'Диспетчер Тестовый',    'dispatch@carvix.ru', 'Disp123!',    'Диспетчер'),
+            ('analyst',     'Аналитик Тестовый',     'analyst@carvix.ru',  'Analyst123!', 'Аналитик'),
+            ('user',        'Пользователь Тестовый', 'user@carvix.ru',     'User123!',    'Пользователь'),
+        ]
+        try:
+            for uname, full_name, email, pwd, role_name in dev_users:
+                role_row = self.execute_one("SELECT id FROM roles WHERE name = ?", (role_name,))
+                if not role_row:
+                    continue
+                ph = _crypt.hash(pwd) if _crypt else pwd
+                fuid = f'DEV_LOCAL_{uname}'
+                exists = self.execute_one(
+                    "SELECT id FROM users WHERE firebase_uid = ?", (fuid,)
+                )
+                if not exists:
+                    self.cursor.execute("""
+                        INSERT OR IGNORE INTO users
+                            (username, full_name, email, password_hash, firebase_uid, role_id, is_active)
+                        VALUES (?, ?, ?, ?, ?, ?, 1)
+                    """, (uname, full_name, email, ph, fuid, role_row['id']))
+            self.connection.commit()
+            logger.info("Dev users ensured")
+        except Exception as e:
+            logger.warning(f"_ensure_dev_users error: {e}")
+
     def _clear_local_auth_users(self):
-        """Удаляет всех пользователей без firebase_uid (тестовые/локальные аккаунты)"""
+        """Удаляет пользователей без firebase_uid (кроме dev-аккаунтов DEV_LOCAL_)."""
         try:
             self.cursor.execute("PRAGMA foreign_keys = OFF")
             self.cursor.execute(
-                "DELETE FROM users WHERE firebase_uid IS NULL OR firebase_uid = ''"
+                "DELETE FROM users WHERE (firebase_uid IS NULL OR firebase_uid = '')"
+                " AND firebase_uid NOT LIKE 'DEV_LOCAL_%'"
             )
             removed = self.cursor.rowcount
             self.connection.commit()
@@ -845,6 +885,33 @@ class Database:
             self.cursor.execute("""INSERT INTO parts (part_number, name, description, category, supplier_id, price, quantity, min_quantity, location)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (part_num, name, name, category, supplier_id, price, qty, min_qty, location))
+
+        # Тестовые пользователи (dev-режим, firebase_uid начинается с DEV_LOCAL_)
+        try:
+            from passlib.context import CryptContext as _CC
+            _crypt = _CC(schemes=['bcrypt'], deprecated='auto')
+        except ImportError:
+            _crypt = None
+
+        dev_users = [
+            ('admin',        'Администратор Системы',  'admin@carvix.ru',      'Admin123!',    'Администратор'),
+            ('director',     'Директор Компании',      'director@carvix.ru',   'Dir123!',      'Директор'),
+            ('chief',        'Главный Механик',        'chief@carvix.ru',      'Chief123!',    'Главный механик'),
+            ('mechanic',     'Механик Тестовый',       'mechanic@carvix.ru',   'Mech123!',     'Механик'),
+            ('dispatcher',   'Диспетчер Тестовый',     'dispatch@carvix.ru',   'Disp123!',     'Диспетчер'),
+            ('analyst',      'Аналитик Тестовый',      'analyst@carvix.ru',    'Analyst123!',  'Аналитик'),
+            ('user',         'Пользователь Тестовый',  'user@carvix.ru',       'User123!',     'Пользователь'),
+        ]
+        for uname, full_name, email, pwd, role_name in dev_users:
+            role_row = self.execute_one("SELECT id FROM roles WHERE name = ?", (role_name,))
+            if not role_row:
+                continue
+            ph = _crypt.hash(pwd) if _crypt else pwd
+            self.cursor.execute("""
+                INSERT OR IGNORE INTO users
+                    (username, full_name, email, password_hash, firebase_uid, role_id, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, 1)
+            """, (uname, full_name, email, ph, f'DEV_LOCAL_{uname}', role_row['id']))
 
         # Тестовые заявки на ремонт (created_by=NULL — пользователи Firebase создаются позже)
         defect_cats = self.execute("SELECT id, name FROM defect_categories")
@@ -1877,6 +1944,35 @@ class LoginWindow(QMainWindow):
         QApplication.processEvents()
 
         try:
+            # ── Dev-режим: локальный вход без Firebase ────────────────
+            dev_user = self.db.execute_one("""
+                SELECT u.*, r.name as role_name, r.permissions
+                FROM users u
+                JOIN roles r ON u.role_id = r.id
+                WHERE u.email = ? AND u.is_active = 1
+                  AND u.firebase_uid LIKE 'DEV_LOCAL_%'
+            """, (email,))
+            if dev_user:
+                dev_dict = dict(dev_user)
+                try:
+                    from passlib.context import CryptContext as _CC
+                    _crypt = _CC(schemes=['bcrypt'], deprecated='auto')
+                    ok = _crypt.verify(password, dev_dict.get('password_hash', ''))
+                except Exception:
+                    ok = (password == dev_dict.get('password_hash', ''))
+                if ok:
+                    self.db.execute_update(
+                        "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
+                        (dev_dict['id'],)
+                    )
+                    self.login_successful.emit(dev_dict)
+                    self.close()
+                    return
+                else:
+                    QMessageBox.warning(self, "Ошибка входа", "Неверный пароль")
+                    return
+
+            # ── Firebase auth ─────────────────────────────────────────
             firebase_uid, _ = FirebaseAuth.sign_in(email, password)
 
             user = self.db.execute_one("""
