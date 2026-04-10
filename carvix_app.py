@@ -1238,16 +1238,8 @@ class AnimationHelper:
 
     @staticmethod
     def fade_page_in(widget, duration=220):
-        """Fade-in для страниц при переключении"""
-        effect = QGraphicsOpacityEffect(widget)
-        widget.setGraphicsEffect(effect)
-        anim = QPropertyAnimation(effect, b"opacity")
-        anim.setDuration(duration)
-        anim.setStartValue(0.0)
-        anim.setEndValue(1.0)
-        anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        anim.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
-        return anim
+        """Safe no-op stub — opacity effects break QStackedWidget rendering."""
+        return None
 
     @staticmethod
     def pulse(widget, color_hex='#6366F1', duration=600):
@@ -2557,10 +2549,6 @@ class MainWindow(QMainWindow):
         if page_id in page_map:
             idx = page_map[page_id]
             self.content_stack.setCurrentIndex(idx)
-            # Fade-in animation for the new page
-            current_widget = self.content_stack.currentWidget()
-            if current_widget:
-                AnimationHelper.fade_page_in(current_widget, duration=200)
             # Trigger page refresh callback if registered
             refresh_fn = getattr(self, '_page_refresh_callbacks', {}).get(page_id)
             if refresh_fn:
