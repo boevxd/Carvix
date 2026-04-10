@@ -240,6 +240,71 @@ class ThemeManager:
             }
 
 # =============================================================================
+# FIREBASE AUTHENTICATION
+# =============================================================================
+
+try:
+    import requests as _requests
+    _REQUESTS_AVAILABLE = True
+except ImportError:
+    _REQUESTS_AVAILABLE = False
+
+class FirebaseAuth:
+    """Firebase Email/Password auth via Identity Toolkit REST API"""
+
+    API_KEY = "AIzaSyDU6Bb_Cd9XHhca1ywioQ_2R3H1zDywM_4"
+    BASE = "https://identitytoolkit.googleapis.com/v1/accounts"
+
+    _ERRORS = {
+        'INVALID_LOGIN_CREDENTIALS':  'Неверный email или пароль',
+        'EMAIL_NOT_FOUND':            'Пользователь с таким email не найден',
+        'INVALID_PASSWORD':           'Неверный пароль',
+        'USER_DISABLED':              'Аккаунт заблокирован администратором',
+        'EMAIL_EXISTS':               'Этот email уже зарегистрирован',
+        'WEAK_PASSWORD':              'Пароль слишком короткий (минимум 6 символов)',
+        'INVALID_EMAIL':              'Неверный формат email',
+        'TOO_MANY_ATTEMPTS_TRY_LATER':'Слишком много попыток. Попробуйте позже',
+        'OPERATION_NOT_ALLOWED':      'Авторизация через email отключена в Firebase',
+    }
+
+    @classmethod
+    def _translate(cls, msg: str) -> str:
+        for key, text in cls._ERRORS.items():
+            if key in msg:
+                return text
+        return f'Ошибка аутентификации: {msg}'
+
+    @classmethod
+    def sign_in(cls, email: str, password: str) -> tuple:
+        """Вход. Возвращает (firebase_uid, id_token). При ошибке — Exception."""
+        if not _REQUESTS_AVAILABLE:
+            raise Exception("Библиотека requests не установлена.\nВыполните: pip install requests")
+        resp = _requests.post(
+            f"{cls.BASE}:signInWithPassword?key={cls.API_KEY}",
+            json={"email": email, "password": password, "returnSecureToken": True},
+            timeout=10
+        )
+        data = resp.json()
+        if "error" in data:
+            raise Exception(cls._translate(data["error"].get("message", "")))
+        return data["localId"], data["idToken"]
+
+    @classmethod
+    def sign_up(cls, email: str, password: str) -> tuple:
+        """Регистрация. Возвращает (firebase_uid, id_token). При ошибке — Exception."""
+        if not _REQUESTS_AVAILABLE:
+            raise Exception("Библиотека requests не установлена.\nВыполните: pip install requests")
+        resp = _requests.post(
+            f"{cls.BASE}:signUp?key={cls.API_KEY}",
+            json={"email": email, "password": password, "returnSecureToken": True},
+            timeout=10
+        )
+        data = resp.json()
+        if "error" in data:
+            raise Exception(cls._translate(data["error"].get("message", "")))
+        return data["localId"], data["idToken"]
+
+# =============================================================================
 # ЛОГИРОВАНИЕ
 # =============================================================================
 
@@ -297,13 +362,16 @@ class Database:
         self.cursor = None
         self.connect()
         self.create_tables()
+        self._migrate_firebase()
         self.seed_initial_data()
+        self._clear_local_auth_users()
 
     def connect(self):
         try:
             self.connection = sqlite3.connect(self.db_name, check_same_thread=False)
             self.connection.row_factory = sqlite3.Row
             self.cursor = self.connection.cursor()
+            self.cursor.execute('PRAGMA journal_mode=WAL')
             self.cursor.execute('PRAGMA foreign_keys = ON')
             logger.info(f"Database connected: {self.db_name}")
         except Exception as e:
@@ -575,6 +643,30 @@ class Database:
         self.connection.commit()
         logger.info("All indexes created successfully")
 
+    def _migrate_firebase(self):
+        """Добавляет колонку firebase_uid в таблицу users (если ещё нет)"""
+        try:
+            self.cursor.execute("ALTER TABLE users ADD COLUMN firebase_uid TEXT")
+            self.connection.commit()
+            logger.info("Migrated: added firebase_uid column to users")
+        except Exception:
+            pass  # Колонка уже существует
+
+    def _clear_local_auth_users(self):
+        """Удаляет всех пользователей без firebase_uid (тестовые/локальные аккаунты)"""
+        try:
+            self.cursor.execute("PRAGMA foreign_keys = OFF")
+            self.cursor.execute(
+                "DELETE FROM users WHERE firebase_uid IS NULL OR firebase_uid = ''"
+            )
+            removed = self.cursor.rowcount
+            self.connection.commit()
+            self.cursor.execute("PRAGMA foreign_keys = ON")
+            if removed > 0:
+                logger.info(f"Removed {removed} local-auth users (no firebase_uid)")
+        except Exception as e:
+            logger.warning(f"_clear_local_auth_users error: {e}")
+
     def seed_initial_data(self):
         self.cursor.execute("SELECT COUNT(*) FROM roles")
         if self.cursor.fetchone()[0] > 0:
@@ -594,29 +686,6 @@ class Database:
             self.cursor.execute("INSERT INTO roles (name, description, permissions) VALUES (?, ?, ?)",
                               (name, desc, perms))
 
-        # Администратор
-        self.cursor.execute("SELECT id FROM roles WHERE name = 'Администратор'")
-        admin_role_id = self.cursor.fetchone()[0]
-        self.cursor.execute("""INSERT INTO users (username, password_hash, full_name, email, role_id, is_active)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            ('admin', hash_password('admin'), 'Администратор Системы', 'admin@carvix.ru', admin_role_id, 1))
-
-        # Тестовые пользователи
-        test_users = [
-            ('director', 'Директор', 'director@carvix.ru', 'Директор'),
-            ('chief_mechanic', 'Главный Механик', 'chief@carvix.ru', 'Главный механик'),
-            ('mechanic1', 'Иванов И.И.', 'mechanic1@carvix.ru', 'Механик'),
-            ('dispatcher', 'Диспетчер', 'dispatcher@carvix.ru', 'Диспетчер'),
-            ('analyst', 'Аналитик', 'analyst@carvix.ru', 'Аналитик'),
-            ('user1', 'Петров П.П.', 'user1@carvix.ru', 'Пользователь'),
-        ]
-        for username, full_name, email, role_name in test_users:
-            self.cursor.execute("SELECT id FROM roles WHERE name = ?", (role_name,))
-            role_id = self.cursor.fetchone()
-            if role_id:
-                self.cursor.execute("""INSERT INTO users (username, password_hash, full_name, email, role_id, is_active)
-                       VALUES (?, ?, ?, ?, ?, ?)""",
-                    (username, hash_password('123456'), full_name, email, role_id[0], 1))
 
         # Виды ремонта
         repair_types = [
@@ -1261,7 +1330,6 @@ class LoginWindow(QMainWindow):
     def _setup_ui(self):
         c = Config.COLORS
         accent = c.get('accent', '#6366F1')
-        accent_d = c.get('accent_dark', '#4F46E5')
 
         central_widget = QWidget()
         central_widget.setObjectName("loginCentral")
@@ -1270,172 +1338,306 @@ class LoginWindow(QMainWindow):
         root.setSpacing(0)
         root.setContentsMargins(0, 0, 0, 0)
 
-        # ── LEFT brand panel ─────────────────────────────────────────
+        # ── LEFT brand panel ──────────────────────────────
         left = QWidget()
         left.setFixedWidth(300)
         left.setStyleSheet(f"background-color: {accent};")
-        left_layout = QVBoxLayout(left)
-        left_layout.setContentsMargins(40, 50, 40, 40)
-        left_layout.setSpacing(0)
-        left_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ll = QVBoxLayout(left)
+        ll.setContentsMargins(40, 50, 40, 40)
+        ll.setSpacing(0)
+        ll.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         if os.path.exists('img.png'):
-            brand_logo = QLabel()
-            px = QPixmap('img.png').scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio,
-                                           Qt.TransformationMode.SmoothTransformation)
-            brand_logo.setPixmap(px)
-            brand_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            brand_logo.setStyleSheet("background: transparent;")
-            left_layout.addWidget(brand_logo)
-            left_layout.addSpacing(20)
+            b_logo = QLabel()
+            b_logo.setPixmap(
+                QPixmap('img.png').scaled(72, 72, Qt.AspectRatioMode.KeepAspectRatio,
+                                          Qt.TransformationMode.SmoothTransformation)
+            )
+            b_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            b_logo.setStyleSheet("background: transparent;")
+            ll.addWidget(b_logo)
+            ll.addSpacing(20)
 
-        brand_name = QLabel("CARVIX")
-        brand_name.setStyleSheet(
+        b_name = QLabel("CARVIX")
+        b_name.setStyleSheet(
             "font-size: 30px; font-weight: 800; color: #FFFFFF;"
             " letter-spacing: 5px; background: transparent;"
         )
-        brand_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        left_layout.addWidget(brand_name)
+        b_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ll.addWidget(b_name)
+        ll.addSpacing(10)
 
-        left_layout.addSpacing(12)
-        tagline = QLabel("Fleet Management\nSystem")
+        tagline = QLabel("Fleet Management System")
         tagline.setStyleSheet(
-            "font-size: 13px; color: rgba(255,255,255,0.70);"
-            " background: transparent; line-height: 1.5;"
+            "font-size: 13px; color: rgba(255,255,255,0.70); background: transparent;"
         )
         tagline.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        left_layout.addWidget(tagline)
+        ll.addWidget(tagline)
+        ll.addStretch()
 
-        left_layout.addStretch()
-
-        # Feature list
         for feat in ["📊  Аналитика и отчёты", "🔧  Управление ремонтами", "🚗  Контроль автопарка"]:
             fl = QLabel(feat)
             fl.setStyleSheet(
                 "font-size: 12px; color: rgba(255,255,255,0.80);"
                 " background: transparent; padding: 3px 0;"
             )
-            left_layout.addWidget(fl)
+            ll.addWidget(fl)
 
-        left_layout.addSpacing(30)
-        ver = QLabel(f"v{Config.APP_VERSION}")
-        ver.setStyleSheet("font-size: 10px; color: rgba(255,255,255,0.45); background: transparent;")
-        ver.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        left_layout.addWidget(ver)
+        ll.addSpacing(28)
+        ver_lbl = QLabel(f"Firebase Auth  •  v{Config.APP_VERSION}")
+        ver_lbl.setStyleSheet(
+            "font-size: 10px; color: rgba(255,255,255,0.40); background: transparent;"
+        )
+        ver_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ll.addWidget(ver_lbl)
         root.addWidget(left)
 
-        # ── RIGHT form panel ─────────────────────────────────────────
+        # ── RIGHT forms panel ──────────────────────────────
         right = QWidget()
         right.setStyleSheet(f"background-color: {c['bg_primary']};")
-        right_layout = QVBoxLayout(right)
-        right_layout.setContentsMargins(60, 0, 60, 0)
-        right_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        right_layout.setSpacing(0)
+        right_outer = QVBoxLayout(right)
+        right_outer.setContentsMargins(0, 0, 0, 0)
+        right_outer.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        welcome = QLabel("Добро пожаловать")
-        welcome.setStyleSheet(
-            f"font-size: 24px; font-weight: 700; color: {c['text_primary']}; background: transparent;"
-        )
-        right_layout.addWidget(welcome)
+        # Stacked: 0=login, 1=register
+        self._form_stack = QStackedWidget()
+        self._form_stack.setStyleSheet("background: transparent;")
+        right_outer.addWidget(self._form_stack)
 
-        sub = QLabel("Войдите в систему управления автопарком")
-        sub.setStyleSheet(
-            f"font-size: 13px; color: {c['text_muted']}; background: transparent;"
-        )
-        right_layout.addWidget(sub)
-        right_layout.addSpacing(32)
+        # --- Login form ---
+        self._form_stack.addWidget(self._build_login_form(c, accent))
 
-        # Login field
-        login_lbl = QLabel("Логин")
-        login_lbl.setObjectName("loginLabel")
-        login_lbl.setStyleSheet("background: transparent;")
-        right_layout.addWidget(login_lbl)
-        right_layout.addSpacing(6)
+        # --- Register form ---
+        self._form_stack.addWidget(self._build_register_form(c, accent))
 
-        self.login_input = QLineEdit()
-        self.login_input.setObjectName("loginInput")
-        self.login_input.setPlaceholderText("Введите логин")
-        self.login_input.setText("admin")
-        self.login_input.setMinimumHeight(46)
-        right_layout.addWidget(self.login_input)
-        right_layout.addSpacing(14)
-
-        # Password field
-        pwd_lbl = QLabel("Пароль")
-        pwd_lbl.setObjectName("loginLabel")
-        pwd_lbl.setStyleSheet("background: transparent;")
-        right_layout.addWidget(pwd_lbl)
-        right_layout.addSpacing(6)
-
-        self.password_input = QLineEdit()
-        self.password_input.setObjectName("loginInput")
-        self.password_input.setPlaceholderText("Введите пароль")
-        self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.password_input.setText("admin")
-        self.password_input.setMinimumHeight(46)
-        self.password_input.returnPressed.connect(self._handle_login)
-        right_layout.addWidget(self.password_input)
-        right_layout.addSpacing(24)
-
-        # Login button
-        self.login_button = QPushButton("Войти в систему")
-        self.login_button.setObjectName("loginPrimary")
-        self.login_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-        self.login_button.setFixedHeight(46)
-        self.login_button.setDefault(True)
-        self.login_button.setAutoDefault(True)
-        self.login_button.setStyleSheet(self._get_login_primary_button_stylesheet())
-        self.login_button.clicked.connect(self._handle_login)
-        right_layout.addWidget(self.login_button)
-        right_layout.addSpacing(16)
-
-        # Test credentials hint
-        hint = QLabel(
-            f"<div style='line-height:1.6'>"
-            f"<span style='color:{c['text_muted']};font-size:11px'>"
-            f"Тестовые логины (пароль: "
-            f"<b style='color:{accent}'>123456</b>)</span><br>"
-            f"<span style='color:{c['text_secondary']};font-size:11px'>"
-            f"<b style='color:{accent}'>admin</b>  •  "
-            f"<b style='color:{accent}'>director</b>  •  "
-            f"<b style='color:{accent}'>mechanic1</b></span></div>"
-        )
-        hint.setTextFormat(Qt.TextFormat.RichText)
-        hint.setWordWrap(True)
-        hint.setStyleSheet("background: transparent;")
-        right_layout.addWidget(hint)
-
+        self._form_stack.setCurrentIndex(0)
         root.addWidget(right, 1)
 
+    def _make_field_label(self, text, c):
+        lbl = QLabel(text)
+        lbl.setObjectName("loginLabel")
+        lbl.setStyleSheet("background: transparent;")
+        return lbl
+
+    def _make_input(self, placeholder, password=False):
+        inp = QLineEdit()
+        inp.setObjectName("loginInput")
+        inp.setPlaceholderText(placeholder)
+        inp.setMinimumHeight(44)
+        if password:
+            inp.setEchoMode(QLineEdit.EchoMode.Password)
+        return inp
+
+    def _build_login_form(self, c, accent):
+        w = QWidget()
+        w.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(w)
+        layout.setContentsMargins(60, 0, 60, 0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        layout.setSpacing(0)
+
+        title = QLabel("Войти в аккаунт")
+        title.setStyleSheet(
+            f"font-size: 22px; font-weight: 700; color: {c['text_primary']}; background: transparent;"
+        )
+        layout.addWidget(title)
+        subtitle = QLabel("Вход через зарегистрированный email")
+        subtitle.setStyleSheet(
+            f"font-size: 13px; color: {c['text_muted']}; background: transparent;"
+        )
+        layout.addWidget(subtitle)
+        layout.addSpacing(28)
+
+        layout.addWidget(self._make_field_label("Email", c))
+        layout.addSpacing(5)
+        self.login_input = self._make_input("Введите email")
+        layout.addWidget(self.login_input)
+        layout.addSpacing(14)
+
+        layout.addWidget(self._make_field_label("Пароль", c))
+        layout.addSpacing(5)
+        self.password_input = self._make_input("Введите пароль", password=True)
+        self.password_input.returnPressed.connect(self._handle_login)
+        layout.addWidget(self.password_input)
+        layout.addSpacing(22)
+
+        self.login_button = QPushButton("Войти")
+        self.login_button.setObjectName("loginPrimary")
+        self.login_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.login_button.setFixedHeight(44)
+        self.login_button.setDefault(True)
+        self.login_button.setStyleSheet(self._get_login_primary_button_stylesheet())
+        self.login_button.clicked.connect(self._handle_login)
+        layout.addWidget(self.login_button)
+        layout.addSpacing(16)
+
+        switch = QPushButton("Нет аккаунта?  Зарегистрироваться")
+        switch.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {accent};"
+            f" border: none; font-size: 13px; text-align: left; }}"
+            f" QPushButton:hover {{ color: {c.get('accent_light', accent)}; }}"
+        )
+        switch.clicked.connect(lambda: self._form_stack.setCurrentIndex(1))
+        layout.addWidget(switch)
+        layout.addStretch()
+        return w
+
+    def _build_register_form(self, c, accent):
+        w = QWidget()
+        w.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(w)
+        layout.setContentsMargins(60, 0, 60, 0)
+        layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        layout.setSpacing(0)
+
+        title = QLabel("Создать аккаунт")
+        title.setStyleSheet(
+            f"font-size: 22px; font-weight: 700; color: {c['text_primary']}; background: transparent;"
+        )
+        layout.addWidget(title)
+        subtitle = QLabel("Регистрация через Google Firebase")
+        subtitle.setStyleSheet(
+            f"font-size: 13px; color: {c['text_muted']}; background: transparent;"
+        )
+        layout.addWidget(subtitle)
+        layout.addSpacing(22)
+
+        layout.addWidget(self._make_field_label("Полное имя", c))
+        layout.addSpacing(5)
+        self.reg_name_input = self._make_input("Имя Фамилия Отчество")
+        layout.addWidget(self.reg_name_input)
+        layout.addSpacing(12)
+
+        layout.addWidget(self._make_field_label("Email", c))
+        layout.addSpacing(5)
+        self.reg_email_input = self._make_input("Введите email")
+        layout.addWidget(self.reg_email_input)
+        layout.addSpacing(12)
+
+        layout.addWidget(self._make_field_label("Пароль (min 6 символов)", c))
+        layout.addSpacing(5)
+        self.reg_password_input = self._make_input("Введите пароль", password=True)
+        layout.addWidget(self.reg_password_input)
+        layout.addSpacing(12)
+
+        layout.addWidget(self._make_field_label("Подтверждение пароля", c))
+        layout.addSpacing(5)
+        self.reg_confirm_input = self._make_input("Повторите пароль", password=True)
+        self.reg_confirm_input.returnPressed.connect(self._handle_register)
+        layout.addWidget(self.reg_confirm_input)
+        layout.addSpacing(20)
+
+        reg_btn = QPushButton("Зарегистрироваться")
+        reg_btn.setObjectName("loginPrimary")
+        reg_btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        reg_btn.setFixedHeight(44)
+        reg_btn.setStyleSheet(self._get_login_primary_button_stylesheet())
+        reg_btn.clicked.connect(self._handle_register)
+        layout.addWidget(reg_btn)
+        layout.addSpacing(14)
+
+        switch = QPushButton("Уже есть аккаунт?  Войти")
+        switch.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {accent};"
+            f" border: none; font-size: 13px; text-align: left; }}"
+            f" QPushButton:hover {{ color: {c.get('accent_light', accent)}; }}"
+        )
+        switch.clicked.connect(lambda: self._form_stack.setCurrentIndex(0))
+        layout.addWidget(switch)
+        layout.addStretch()
+        return w
+
     def _handle_login(self):
-        username = self.login_input.text().strip()
+        email = self.login_input.text().strip()
         password = self.password_input.text().strip()
 
-        if not username or not password:
-            QMessageBox.warning(self, "Ошибка", "Введите логин и пароль")
+        if not email or not password:
+            QMessageBox.warning(self, "Ошибка", "Введите email и пароль")
+            return
+
+        self.login_button.setEnabled(False)
+        self.login_button.setText("Проверка...")
+        QApplication.processEvents()
+
+        try:
+            firebase_uid, _ = FirebaseAuth.sign_in(email, password)
+
+            user = self.db.execute_one("""
+                SELECT u.*, r.name as role_name, r.permissions
+                FROM users u
+                JOIN roles r ON u.role_id = r.id
+                WHERE u.firebase_uid = ? AND u.is_active = 1
+            """, (firebase_uid,))
+
+            if not user:
+                QMessageBox.warning(
+                    self, "Доступ запрещён",
+                    "Аккаунт Firebase найден, но пользователь не зарегистрирован в системе.\n"
+                    "Перейдите на вкладку «Регистрация» и зарегистрируйтесь."
+                )
+                return
+
+            user_dict = dict(user)
+            self.db.execute_update(
+                "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
+                (user_dict['id'],)
+            )
+            self.login_successful.emit(user_dict)
+            self.close()
+
+        except Exception as e:
+            logger.error(f"Login error: {e}")
+            QMessageBox.critical(self, "Ошибка входа", str(e))
+        finally:
+            self.login_button.setEnabled(True)
+            self.login_button.setText("Войти")
+
+    def _handle_register(self):
+        full_name = self.reg_name_input.text().strip()
+        email = self.reg_email_input.text().strip()
+        password = self.reg_password_input.text()
+        confirm = self.reg_confirm_input.text()
+
+        if not full_name or not email or not password:
+            QMessageBox.warning(self, "Ошибка", "Заполните все поля")
+            return
+        if password != confirm:
+            QMessageBox.warning(self, "Ошибка", "Пароли не совпадают")
+            return
+        if len(password) < 6:
+            QMessageBox.warning(self, "Ошибка", "Пароль должен быть не менее 6 символов")
             return
 
         try:
-            user = self.db.execute_one("""
-                SELECT u.*, r.name as role_name, r.permissions 
-                FROM users u 
-                JOIN roles r ON u.role_id = r.id 
-                WHERE u.username = ? AND u.password_hash = ? AND u.is_active = 1
-            """, (username, hash_password(password)))
+            # Определяем роль: первый участник — админ, остальные — Пользователь
+            users_count = self.db.execute_one("SELECT COUNT(*) FROM users")[0]
+            role_name = 'Администратор' if users_count == 0 else 'Пользователь'
 
-            if user:
-                user_dict = dict(user)
-                self.db.execute_update(
-                    "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
-                    (user_dict['id'],)
-                )
-                self.login_successful.emit(user_dict)
-                self.close()
-            else:
-                QMessageBox.warning(self, "Ошибка", "Неверный логин или пароль")
+            role = self.db.execute_one(
+                "SELECT id FROM roles WHERE name = ?", (role_name,)
+            )
+            if not role:
+                QMessageBox.critical(self, "Ошибка", "Роли не найдены в БД. Перезапустите приложение.")
+                return
+
+            firebase_uid, _ = FirebaseAuth.sign_up(email, password)
+
+            self.db.execute_insert("""
+                INSERT INTO users
+                  (username, password_hash, firebase_uid, full_name, email, role_id, is_active)
+                VALUES (?, '', ?, ?, ?, ?, 1)
+            """, (email, firebase_uid, full_name, email, role['id']))
+
+            QMessageBox.information(
+                self, "Регистрация завершена",
+                f"Аккаунт создан.\nРоль: {role_name}\n\nТеперь войдите с этим email и паролем."
+            )
+            self._form_stack.setCurrentIndex(0)
+            self.login_input.setText(email)
+
         except Exception as e:
-            logger.error(f"Login error: {e}")
-            QMessageBox.critical(self, "Ошибка", f"Ошибка авторизации: {str(e)}")
+            logger.error(f"Register error: {e}")
+            QMessageBox.critical(self, "Ошибка регистрации", str(e))
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Return or event.key() == Qt.Key.Key_Enter:

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "638360881133",
+    "project_id": "carvix-b1214",
+    "storage_bucket": "carvix-b1214.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:638360881133:android:d703fa57978788705dc9e4",
+        "android_client_info": {
+          "package_name": "com.company.Carvix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDU6Bb_Cd9XHhca1ywioQ_2R3H1zDywM_4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
