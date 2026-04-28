@@ -192,9 +192,9 @@ button { font-family: inherit; }
 
 .brand { position: relative; z-index: 2; }
 .brand__logo {
-  width: 240px;
-  max-width: 100%;
-  margin: -12px 0 18px -16px;
+  width: 320px;
+  max-width: calc(100% + 56px);
+  margin: -24px 0 12px -56px;
   display: block;
   animation: logo-in 1s var(--ease-bounce) both .15s;
   transition: transform .5s var(--ease);
