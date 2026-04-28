@@ -1,0 +1,169 @@
+-- =========================
+-- 1. МАРКА
+-- =========================
+CREATE TABLE marka (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    nazvanie VARCHAR(255) NOT NULL COMMENT 'Марка автомобиля (КАМАЗ, MAN и т.д.)'
+) COMMENT='Марка';
+
+-- =========================
+-- 2. МОДЕЛЬ
+-- =========================
+CREATE TABLE model (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    marka_id INT NOT NULL COMMENT 'Ссылка на марку',
+    nazvanie VARCHAR(255) NOT NULL COMMENT 'Модель (например, 65115)',
+    FOREIGN KEY (marka_id) REFERENCES marka(id)
+) COMMENT='Модель';
+
+-- =========================
+-- 3. ПОДРАЗДЕЛЕНИЕ
+-- =========================
+CREATE TABLE podrazdelenie (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    nazvanie VARCHAR(255) NOT NULL COMMENT 'Название подразделения'
+) COMMENT='Подразделение';
+
+-- =========================
+-- 4. РОЛЬ
+-- =========================
+CREATE TABLE rol (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    nazvanie VARCHAR(255) NOT NULL COMMENT 'Аналитик / Диспетчер / Механик / Главный механик / Директор / Пользователь'
+) COMMENT='Роль';
+
+-- =========================
+-- 5. СОТРУДНИК
+-- =========================
+CREATE TABLE sotrudnik (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    fio VARCHAR(255) NOT NULL COMMENT 'Фамилия Имя Отчество',
+    login VARCHAR(100) NOT NULL COMMENT 'Логин для входа',
+    parol_hash VARCHAR(255) NOT NULL COMMENT 'Хэш пароля',
+    rol_id INT NOT NULL COMMENT 'Ссылка на роль',
+    podrazdelenie_id INT NOT NULL COMMENT 'Ссылка на подразделение',
+    FOREIGN KEY (rol_id) REFERENCES rol(id),
+    FOREIGN KEY (podrazdelenie_id) REFERENCES podrazdelenie(id)
+) COMMENT='Сотрудник';
+
+-- =========================
+-- 6. ТРАНСПОРТНОЕ СРЕДСТВО
+-- =========================
+CREATE TABLE transportnoe_sredstvo (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    gos_nomer VARCHAR(50) NOT NULL COMMENT 'Государственный номер',
+    invent_nomer VARCHAR(50) NOT NULL COMMENT 'Инвентарный номер',
+    model_id INT NOT NULL COMMENT 'Ссылка на модель',
+    podrazdelenie_id INT NOT NULL COMMENT 'Ссылка на подразделение',
+    probeg INT COMMENT 'Текущий пробег',
+    data_vypuska DATE COMMENT 'Дата выпуска',
+    tekuschee_sostoyanie VARCHAR(100) COMMENT 'В работе / На ТО / В ремонте',
+    FOREIGN KEY (model_id) REFERENCES model(id),
+    FOREIGN KEY (podrazdelenie_id) REFERENCES podrazdelenie(id)
+) COMMENT='Транспортное средство';
+
+-- =========================
+-- 7. СТАТУС
+-- =========================
+CREATE TABLE status (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    nazvanie VARCHAR(100) NOT NULL COMMENT 'Новая / В работе / Выполнена / Отклонена / Ожидание запчастей и т.д.'
+) COMMENT='Статус';
+
+-- =========================
+-- 8. ТИП РЕМОНТА
+-- =========================
+CREATE TABLE tip_remonta (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    nazvanie VARCHAR(100) NOT NULL COMMENT 'ТО / Текущий ремонт / Капитальный ремонт / Неисправность',
+    kategoriya VARCHAR(100) COMMENT 'Плановый / Внеплановый'
+) COMMENT='Тип ремонта';
+
+-- =========================
+-- 9. ПОСТАВЩИК
+-- =========================
+CREATE TABLE postavshik (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    nazvanie VARCHAR(255) NOT NULL COMMENT 'Название поставщика',
+    kontakty VARCHAR(255) COMMENT 'Телефон / email',
+    adres VARCHAR(255) COMMENT 'Адрес'
+) COMMENT='Поставщик';
+
+-- =========================
+-- 10. ЗАПЧАСТЬ
+-- =========================
+CREATE TABLE zapchast (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    naimenovanie VARCHAR(255) NOT NULL COMMENT 'Наименование',
+    artikul VARCHAR(100) COMMENT 'Артикул',
+    postavshik_id INT COMMENT 'Ссылка на поставщика',
+    tsena DECIMAL(10,2) COMMENT 'Текущая цена',
+    ostatok_na_sklade INT COMMENT 'Количество на складе',
+    kategoriya VARCHAR(100) COMMENT 'Масло / фильтр / тормозные колодки и т.д.',
+    FOREIGN KEY (postavshik_id) REFERENCES postavshik(id)
+) COMMENT='Запчасть';
+
+-- =========================
+-- 11. ЗАЯВКА
+-- =========================
+CREATE TABLE zayavka (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    data_sozdaniya DATETIME NOT NULL COMMENT 'Дата и время создания',
+    sozdatel_id INT NOT NULL COMMENT 'Сотрудник, создавший заявку',
+    ts_id INT NOT NULL COMMENT 'Транспортное средство',
+    tip_remonta_id INT NOT NULL COMMENT 'Тип ремонта / неисправность',
+    opisanie TEXT COMMENT 'Описание проблемы',
+    status_id INT NOT NULL COMMENT 'Текущий статус',
+    prioritet INT COMMENT '1-5',
+    data_rezhima DATETIME COMMENT 'Дата реакции диспетчера',
+    FOREIGN KEY (sozdatel_id) REFERENCES sotrudnik(id),
+    FOREIGN KEY (ts_id) REFERENCES transportnoe_sredstvo(id),
+    FOREIGN KEY (tip_remonta_id) REFERENCES tip_remonta(id),
+    FOREIGN KEY (status_id) REFERENCES status(id)
+) COMMENT='Заявка';
+
+-- =========================
+-- 12. РЕМОНТ
+-- =========================
+CREATE TABLE remont (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    zayavka_id INT NOT NULL COMMENT 'Связь 1:1 с заявкой',
+    data_nachala DATETIME COMMENT 'Дата начала ремонта',
+    data_okonchaniya DATETIME COMMENT 'Дата окончания',
+    mekhanik_id INT COMMENT 'Исполнитель (механик)',
+    glavniy_mekhanik_id INT COMMENT 'Утвердил главный механик',
+    stoimost_rabot DECIMAL(10,2) COMMENT 'Стоимость работ',
+    stoimost_zapchastey DECIMAL(10,2) COMMENT 'Стоимость запчастей',
+    kommentariy TEXT COMMENT 'Комментарий механика',
+    itog VARCHAR(255) COMMENT 'Проблема устранена / невозможно выполнить',
+    FOREIGN KEY (zayavka_id) REFERENCES zayavka(id),
+    FOREIGN KEY (mekhanik_id) REFERENCES sotrudnik(id),
+    FOREIGN KEY (glavniy_mekhanik_id) REFERENCES sotrudnik(id)
+) COMMENT='Ремонт';
+
+-- =========================
+-- 13. ИСПОЛЬЗОВАНИЕ ЗАПЧАСТЕЙ
+-- =========================
+CREATE TABLE ispolzovanie_zapchastey (
+    remont_id INT NOT NULL,
+    zapchast_id INT NOT NULL,
+    kolichestvo INT NOT NULL COMMENT 'Количество',
+    tsena_na_moment DECIMAL(10,2) COMMENT 'Цена на момент использования',
+    PRIMARY KEY (remont_id, zapchast_id),
+    FOREIGN KEY (remont_id) REFERENCES remont(id),
+    FOREIGN KEY (zapchast_id) REFERENCES zapchast(id)
+) COMMENT='Использование запчастей';
+
+-- =========================
+-- 14. ВЛОЖЕНИЯ
+-- =========================
+CREATE TABLE vlozhenie (
+    id INT PRIMARY KEY AUTO_INCREMENT COMMENT 'Первичный ключ',
+    zayavka_id INT NULL COMMENT 'Фото к заявке (может быть NULL)',
+    remont_id INT NULL COMMENT 'Фото к ремонту (может быть NULL)',
+    put_faila VARCHAR(255) NOT NULL COMMENT 'Путь к файлу',
+    tip_faila VARCHAR(50) COMMENT 'jpg / png',
+    data_zagruzki DATETIME COMMENT 'Дата загрузки',
+    FOREIGN KEY (zayavka_id) REFERENCES zayavka(id),
+    FOREIGN KEY (remont_id) REFERENCES remont(id)
+) COMMENT='Вложения';
