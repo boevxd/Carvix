@@ -70,13 +70,14 @@ router.post('/register', async (req, res) => {
     const podrazdelenie_id = defPodr.id;
 
     const hash = await bcrypt.hash(password, 10);
-    const [result] = await pool.execute(
+    const [inserted] = await pool.execute(
       `INSERT INTO sotrudnik (fio, login, parol_hash, rol_id, podrazdelenie_id)
-       VALUES (?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?)
+       RETURNING id`,
       [fio, login, hash, rol_id, podrazdelenie_id]
     );
 
-    const userId = result.insertId;
+    const userId = inserted[0].id;
     const [rows] = await pool.execute(
       `SELECT s.id, s.fio, s.login, s.rol_id, r.nazvanie AS rol_nazvanie,
               s.podrazdelenie_id, p.nazvanie AS podrazdelenie_nazvanie

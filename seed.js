@@ -1,3 +1,16 @@
+/**
+ * Carvix — стартовый бутстрап БД.
+ *
+ * 1. Применяет schema.sql (CREATE TABLE IF NOT EXISTS …) — таблицы
+ *    создаются автоматически при первом запуске на чистой БД (Render).
+ * 2. Гарантирует наличие 6 базовых ролей и 4 подразделений.
+ *
+ * Демо-данные (12 сотрудников, машины, заявки …) — отдельно через
+ * `npm run seed:demo`.
+ */
+
+const fs = require('fs');
+const path = require('path');
 const pool = require('./db');
 
 const ROLES = [
@@ -16,36 +29,29 @@ const DEFAULT_PODRAZDELENIYA = [
   'Ремонтный цех',
 ];
 
-async function seed() {
-  const conn = await pool.getConnection();
-  try {
-    for (const name of ROLES) {
-      const [rows] = await conn.execute(
-        'SELECT id FROM rol WHERE nazvanie = ? LIMIT 1',
-        [name]
-      );
-      if (rows.length === 0) {
-        await conn.execute('INSERT INTO rol (nazvanie) VALUES (?)', [name]);
-        console.log(`[seed] Добавлена роль: ${name}`);
-      }
-    }
+async function applySchema() {
+  const ddl = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+  await pool.raw(ddl);
+}
 
-    for (const name of DEFAULT_PODRAZDELENIYA) {
-      const [rows] = await conn.execute(
-        'SELECT id FROM podrazdelenie WHERE nazvanie = ? LIMIT 1',
-        [name]
-      );
-      if (rows.length === 0) {
-        await conn.execute(
-          'INSERT INTO podrazdelenie (nazvanie) VALUES (?)',
-          [name]
-        );
-        console.log(`[seed] Добавлено подразделение: ${name}`);
-      }
+async function ensureRows(table, items) {
+  for (const name of items) {
+    const [rows] = await pool.execute(
+      `SELECT id FROM ${table} WHERE nazvanie = ? LIMIT 1`,
+      [name]
+    );
+    if (rows.length === 0) {
+      await pool.execute(`INSERT INTO ${table} (nazvanie) VALUES (?)`, [name]);
+      const label = table === 'rol' ? 'роль' : 'подразделение';
+      console.log(`[seed] Добавлено ${label}: ${name}`);
     }
-  } finally {
-    conn.release();
   }
+}
+
+async function seed() {
+  await applySchema();
+  await ensureRows('rol', ROLES);
+  await ensureRows('podrazdelenie', DEFAULT_PODRAZDELENIYA);
 }
 
 module.exports = seed;

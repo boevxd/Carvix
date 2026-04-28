@@ -1,26 +1,26 @@
 -- =========================================================
--- Carvix — полное наполнение БД демонстрационными данными
--- Применять ПОСЛЕ создания таблиц из script_bd.txt
+-- Carvix — полное наполнение БД демо-данными (PostgreSQL)
+-- Применять ПОСЛЕ schema.sql.
 -- Пароль для всех тестовых сотрудников: "password"
+-- Запуск: npm run seed:demo  (или: psql -f seed_data.sql)
 -- =========================================================
-USE carvix;
 
-SET FOREIGN_KEY_CHECKS = 0;
-TRUNCATE TABLE ispolzovanie_zapchastey;
-TRUNCATE TABLE vlozhenie;
-TRUNCATE TABLE remont;
-TRUNCATE TABLE zayavka;
-TRUNCATE TABLE zapchast;
-TRUNCATE TABLE postavshik;
-TRUNCATE TABLE tip_remonta;
-TRUNCATE TABLE status;
-TRUNCATE TABLE transportnoe_sredstvo;
-TRUNCATE TABLE sotrudnik;
-TRUNCATE TABLE rol;
-TRUNCATE TABLE podrazdelenie;
-TRUNCATE TABLE model;
-TRUNCATE TABLE marka;
-SET FOREIGN_KEY_CHECKS = 1;
+TRUNCATE TABLE
+  ispolzovanie_zapchastey,
+  vlozhenie,
+  remont,
+  zayavka,
+  zapchast,
+  postavshik,
+  tip_remonta,
+  status,
+  transportnoe_sredstvo,
+  sotrudnik,
+  rol,
+  podrazdelenie,
+  model,
+  marka
+RESTART IDENTITY CASCADE;
 
 -- 1. Марки
 INSERT INTO marka (id, nazvanie) VALUES
@@ -67,20 +67,19 @@ INSERT INTO rol (id, nazvanie) VALUES
   (6, 'Пользователь');
 
 -- 5. Сотрудники (пароль для всех: "password")
-SET @pwd := '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 INSERT INTO sotrudnik (id, fio, login, parol_hash, rol_id, podrazdelenie_id) VALUES
-  (1,  'Иванов Иван Иванович',          'ivanov',    @pwd, 5, 1),
-  (2,  'Петров Пётр Петрович',          'petrov',    @pwd, 4, 4),
-  (3,  'Сидоров Алексей Олегович',      'sidorov',   @pwd, 3, 4),
-  (4,  'Кузнецов Дмитрий Сергеевич',    'kuznetsov', @pwd, 3, 4),
-  (5,  'Морозова Анна Викторовна',      'morozova',  @pwd, 2, 1),
-  (6,  'Волкова Екатерина Игоревна',    'volkova',   @pwd, 1, 1),
-  (7,  'Соколов Михаил Андреевич',      'sokolov',   @pwd, 6, 2),
-  (8,  'Лебедев Артём Викторович',      'lebedev',   @pwd, 6, 3),
-  (9,  'Новиков Юрий Павлович',         'novikov',   @pwd, 3, 4),
-  (10, 'Орлова Светлана Николаевна',    'orlova',    @pwd, 2, 1),
-  (11, 'Зайцев Игорь Анатольевич',      'zaytsev',   @pwd, 6, 2),
-  (12, 'Фролова Мария Алексеевна',      'frolova',   @pwd, 1, 1);
+  (1,  'Иванов Иван Иванович',          'ivanov',    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 5, 1),
+  (2,  'Петров Пётр Петрович',          'petrov',    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 4, 4),
+  (3,  'Сидоров Алексей Олегович',      'sidorov',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 3, 4),
+  (4,  'Кузнецов Дмитрий Сергеевич',    'kuznetsov', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 3, 4),
+  (5,  'Морозова Анна Викторовна',      'morozova',  '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 2, 1),
+  (6,  'Волкова Екатерина Игоревна',    'volkova',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 1, 1),
+  (7,  'Соколов Михаил Андреевич',      'sokolov',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 6, 2),
+  (8,  'Лебедев Артём Викторович',      'lebedev',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 6, 3),
+  (9,  'Новиков Юрий Павлович',         'novikov',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 3, 4),
+  (10, 'Орлова Светлана Николаевна',    'orlova',    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 2, 1),
+  (11, 'Зайцев Игорь Анатольевич',      'zaytsev',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 6, 2),
+  (12, 'Фролова Мария Алексеевна',      'frolova',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 1, 1);
 
 -- 6. Транспортные средства
 INSERT INTO transportnoe_sredstvo (id, gos_nomer, invent_nomer, model_id, podrazdelenie_id, probeg, data_vypuska, tekuschee_sostoyanie) VALUES
@@ -164,12 +163,12 @@ INSERT INTO zayavka (id, data_sozdaniya, sozdatel_id, ts_id, tip_remonta_id, opi
 -- 12. Ремонты
 INSERT INTO remont (id, zayavka_id, data_nachala, data_okonchaniya, mekhanik_id, glavniy_mekhanik_id, stoimost_rabot, stoimost_zapchastey, kommentariy, itog) VALUES
   (1,  1,  '2026-04-10 11:00:00', '2026-04-10 14:30:00', 3, 2,  3500.00,  3250.00, 'Замена масла и фильтров. Всё штатно.',                'Проблема устранена'),
-  (2,  2,  '2026-04-12 13:00:00', NULL,                 4, 2,     0.00,     0.00, 'Диагностика топливной и системы пуска',               NULL),
+  (2,  2,  '2026-04-12 13:00:00', NULL,                  4, 2,     0.00,     0.00, 'Диагностика топливной и системы пуска',               NULL),
   (3,  3,  '2026-04-13 10:00:00', '2026-04-13 15:00:00', 9, 2,  4200.00,  5200.00, 'Замена передних колодок, протяжка суппортов',         'Проблема устранена'),
   (4,  5,  '2026-04-18 12:00:00', '2026-04-18 17:00:00', 3, 2,  3000.00, 75600.00, 'Замена 4 шин 315/80 R22.5',                           'Проблема устранена'),
   (5,  7,  '2026-04-22 10:00:00', '2026-04-22 10:45:00', 9, 2,   500.00,   700.00, 'Замена ламп H7, диагностика проводки',                'Проблема устранена'),
-  (6,  8,  '2026-04-23 18:00:00', NULL,                 4, 2,     0.00,     0.00, 'Плановое ТО-2: масло, фильтры, диагностика',          NULL),
-  (7,  10, '2026-04-26 14:00:00', NULL,                 3, 2,     0.00,     0.00, 'Разборка КПП, дефектовка',                            NULL),
+  (6,  8,  '2026-04-23 18:00:00', NULL,                  4, 2,     0.00,     0.00, 'Плановое ТО-2: масло, фильтры, диагностика',          NULL),
+  (7,  10, '2026-04-26 14:00:00', NULL,                  3, 2,     0.00,     0.00, 'Разборка КПП, дефектовка',                            NULL),
   (8,  14, '2026-04-08 17:00:00', '2026-04-08 21:30:00', 4, 2,  6500.00,  4550.00, 'ТО-2: масло, фильтры, антифриз, проверка тормозов',  'Проблема устранена');
 
 -- 13. Использование запчастей
@@ -194,3 +193,18 @@ INSERT INTO vlozhenie (id, zayavka_id, remont_id, put_faila, tip_faila, data_zag
   (6, 5,    NULL, '/uploads/2026/04/18/zayavka_5_tires.png',       'png', '2026-04-18 10:35:00'),
   (7, NULL, 8,    '/uploads/2026/04/08/remont_8_to2.jpg',          'jpg', '2026-04-08 21:35:00'),
   (8, 12,   NULL, '/uploads/2026/04/28/zayavka_12_coolant.jpg',    'jpg', '2026-04-28 11:05:00');
+
+-- Сброс sequence-ов под максимальные id (после INSERT с явными ID)
+SELECT setval(pg_get_serial_sequence('marka', 'id'),                  (SELECT MAX(id) FROM marka));
+SELECT setval(pg_get_serial_sequence('model', 'id'),                  (SELECT MAX(id) FROM model));
+SELECT setval(pg_get_serial_sequence('podrazdelenie', 'id'),          (SELECT MAX(id) FROM podrazdelenie));
+SELECT setval(pg_get_serial_sequence('rol', 'id'),                    (SELECT MAX(id) FROM rol));
+SELECT setval(pg_get_serial_sequence('sotrudnik', 'id'),              (SELECT MAX(id) FROM sotrudnik));
+SELECT setval(pg_get_serial_sequence('transportnoe_sredstvo', 'id'),  (SELECT MAX(id) FROM transportnoe_sredstvo));
+SELECT setval(pg_get_serial_sequence('status', 'id'),                 (SELECT MAX(id) FROM status));
+SELECT setval(pg_get_serial_sequence('tip_remonta', 'id'),            (SELECT MAX(id) FROM tip_remonta));
+SELECT setval(pg_get_serial_sequence('postavshik', 'id'),             (SELECT MAX(id) FROM postavshik));
+SELECT setval(pg_get_serial_sequence('zapchast', 'id'),               (SELECT MAX(id) FROM zapchast));
+SELECT setval(pg_get_serial_sequence('zayavka', 'id'),                (SELECT MAX(id) FROM zayavka));
+SELECT setval(pg_get_serial_sequence('remont', 'id'),                 (SELECT MAX(id) FROM remont));
+SELECT setval(pg_get_serial_sequence('vlozhenie', 'id'),              (SELECT MAX(id) FROM vlozhenie));
