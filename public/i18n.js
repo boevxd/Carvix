@@ -192,6 +192,73 @@
       'toast.fill_required':   'Заполните дату и сумму',
       'toast.no_rights':       'Недостаточно прав для этого раздела',
       'toast.auth_error':      'Ошибка авторизации',
+      'toast.imported':        'Импортировано {n} расходов',
+      'toast.import_partial':  'Импортировано {n}, пропущено {skipped}',
+      'toast.email_sent':      'Отчёт отправлен на {to}',
+      'toast.budget_saved':    'Бюджет сохранён ({created} создано, {updated} обновлено)',
+      'toast.copied':          'Скопировано {n} записей',
+      'toast.receipt_saved':   'Накладная принята',
+      'toast.expense_updated': 'Расход обновлён',
+
+      // ---- Экспорт ----
+      'export.menu':           'Экспорт',
+      'export.excel':          'Excel',
+      'export.pdf':            'PDF',
+      'export.email':          'Отправить на email',
+      'export.email_to':       'Email получателя',
+      'export.email_subject':  'Тема письма (опц.)',
+      'export.email_send':     'Отправить',
+      'export.email_smtp_off': 'SMTP не настроен. Файл будет скачан вместо отправки.',
+
+      // ---- Бюджеты: редактор ----
+      'budgets.editor':           'Редактор бюджетов',
+      'budgets.editor_intro':     'Установите план на каждый месяц по подразделению и категории. Изменённые ячейки сохранятся одним нажатием.',
+      'budgets.year':             'Год',
+      'budgets.division':         'Подразделение',
+      'budgets.copy_from_prev':   'Скопировать с прошлого года',
+      'budgets.copy_koeff':       'Коэффициент',
+      'budgets.copy_btn':         'Скопировать',
+      'budgets.save_all':         'Сохранить план',
+      'budgets.export_excel':     'Скачать Excel',
+      'budgets.changed':          'Изменено: {n}',
+      'budgets.no_changes':       'Нет изменений',
+
+      // ---- Накладные: создание ----
+      'receipts.add':             '+ Принять накладную',
+      'receipts.modal_title':     'Приходная накладная',
+      'receipts.supplier':        'Поставщик',
+      'receipts.date':            'Дата прихода',
+      'receipts.number':          'Номер накладной',
+      'receipts.comment':         'Комментарий',
+      'receipts.positions':       'Позиции',
+      'receipts.add_position':    '+ Добавить позицию',
+      'receipts.part':            'Запчасть',
+      'receipts.qty':             'Кол-во',
+      'receipts.price':           'Цена',
+      'receipts.subtotal':        'Сумма',
+      'receipts.total':           'Итого',
+      'receipts.empty_pos':       'Добавьте хотя бы одну позицию',
+      'receipts.print_pdf':       'Печать (PDF M-15)',
+      'receipts.email_pdf':       'Отправить на email',
+
+      // ---- Импорт CSV ----
+      'csv.import':               'Импорт CSV',
+      'csv.title':                'Импорт расходов из CSV',
+      'csv.hint':                 'Колонки: data, kategoriya, summa, gos_nomer (или podrazdelenie), opisanie. Разделитель — запятая или ;.',
+      'csv.choose':               'Выбрать файл',
+      'csv.upload':               'Загрузить',
+      'csv.example':              'Скачать пример',
+
+      // ---- Inline edit ----
+      'common.edit':              'Изменить',
+      'common.confirm':           'Подтвердить',
+
+      // ---- TCO export ----
+      'tco.export_excel':         'Скачать TCO Excel',
+      'tco.writeoff_pdf':         'Акт списания PDF',
+
+      // ---- Дашборд export ----
+      'dashboard.monthly_pdf':    'Отчёт месяца (PDF)',
     },
 
     en: {
@@ -376,6 +443,73 @@
       'toast.fill_required':   'Fill date and amount',
       'toast.no_rights':       'You don\'t have access to this section',
       'toast.auth_error':      'Authorization error',
+      'toast.imported':        'Imported {n} expenses',
+      'toast.import_partial':  'Imported {n}, skipped {skipped}',
+      'toast.email_sent':      'Report sent to {to}',
+      'toast.budget_saved':    'Budget saved ({created} created, {updated} updated)',
+      'toast.copied':          'Copied {n} records',
+      'toast.receipt_saved':   'Receipt accepted',
+      'toast.expense_updated': 'Expense updated',
+
+      // ---- Export ----
+      'export.menu':           'Export',
+      'export.excel':          'Excel',
+      'export.pdf':            'PDF',
+      'export.email':          'Send by email',
+      'export.email_to':       'Recipient email',
+      'export.email_subject':  'Subject (optional)',
+      'export.email_send':     'Send',
+      'export.email_smtp_off': 'SMTP not configured. File will be downloaded instead.',
+
+      // ---- Budgets editor ----
+      'budgets.editor':           'Budget editor',
+      'budgets.editor_intro':     'Set the plan for each month by division and category. Edited cells are saved with one click.',
+      'budgets.year':             'Year',
+      'budgets.division':         'Division',
+      'budgets.copy_from_prev':   'Copy from previous year',
+      'budgets.copy_koeff':       'Coefficient',
+      'budgets.copy_btn':         'Copy',
+      'budgets.save_all':         'Save plan',
+      'budgets.export_excel':     'Download Excel',
+      'budgets.changed':          'Changed: {n}',
+      'budgets.no_changes':       'No changes',
+
+      // ---- Receipts: create ----
+      'receipts.add':             '+ Accept receipt',
+      'receipts.modal_title':     'Goods receipt',
+      'receipts.supplier':        'Supplier',
+      'receipts.date':            'Receipt date',
+      'receipts.number':          'Receipt number',
+      'receipts.comment':         'Comment',
+      'receipts.positions':       'Items',
+      'receipts.add_position':    '+ Add item',
+      'receipts.part':            'Part',
+      'receipts.qty':             'Qty',
+      'receipts.price':           'Price',
+      'receipts.subtotal':        'Subtotal',
+      'receipts.total':           'Total',
+      'receipts.empty_pos':       'Add at least one item',
+      'receipts.print_pdf':       'Print (PDF M-15)',
+      'receipts.email_pdf':       'Email PDF',
+
+      // ---- CSV import ----
+      'csv.import':               'CSV import',
+      'csv.title':                'Import expenses from CSV',
+      'csv.hint':                 'Columns: data, kategoriya, summa, gos_nomer (or podrazdelenie), opisanie. Delimiter: comma or ;.',
+      'csv.choose':               'Choose file',
+      'csv.upload':               'Upload',
+      'csv.example':              'Download sample',
+
+      // ---- Inline edit ----
+      'common.edit':              'Edit',
+      'common.confirm':           'Confirm',
+
+      // ---- TCO export ----
+      'tco.export_excel':         'Download TCO Excel',
+      'tco.writeoff_pdf':         'Write-off PDF',
+
+      // ---- Dashboard export ----
+      'dashboard.monthly_pdf':    'Monthly report (PDF)',
     },
   };
 

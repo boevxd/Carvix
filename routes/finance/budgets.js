@@ -88,6 +88,104 @@ router.get('/plan-fakt', authRequired, requireFinanceRead, async (req, res) => {
   }
 });
 
+/* ----------- POST /budgets/bulk -----------
+ * Массовое UPSERT-сохранение годовой матрицы плана.
+ * Ожидаемый формат body:
+ *   { items: [{ podrazdelenie_id, god, mesyats, kategoriya, plan_summa }, ...] }
+ *
+ * Существующие комбинации (podrazdelenie_id, god, mesyats, kategoriya) обновляются,
+ * новые — вставляются. Возвращает { created, updated }.
+ */
+router.post('/bulk', authRequired, onlyDirektor, async (req, res) => {
+  try {
+    const { items } = req.body;
+    if (!Array.isArray(items) || !items.length)
+      return res.status(400).json({ error: 'items должен быть непустым массивом' });
+
+    let created = 0, updated = 0;
+    await pool.transaction(async (tx) => {
+      for (const it of items) {
+        const { podrazdelenie_id, god, mesyats, kategoriya, plan_summa } = it;
+        if (!podrazdelenie_id || !god || !mesyats || !kategoriya || plan_summa === undefined) continue;
+        if (!ALLOWED_KATEGORIY.includes(kategoriya)) continue;
+        if (Number(plan_summa) < 0) continue;
+
+        const [r] = await tx.execute(
+          `INSERT INTO byudzhet (podrazdelenie_id, god, mesyats, kategoriya, plan_summa)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT (podrazdelenie_id, god, mesyats, kategoriya)
+             DO UPDATE SET plan_summa = EXCLUDED.plan_summa
+           RETURNING id, (xmax = 0) AS is_new`,
+          [podrazdelenie_id, god, mesyats, kategoriya, Number(plan_summa)]
+        );
+        if (r[0].is_new) created++; else updated++;
+      }
+
+      await tx.execute(
+        `INSERT INTO finansoviy_log (sotrudnik_id, tip_operatsii, obyekt_tablitsa, summa, kommentariy)
+         VALUES (?, 'BULK_BYUDZHET', 'byudzhet', NULL, ?)`,
+        [req.user.id, `Массовое сохранение бюджетов: создано ${created}, обновлено ${updated}`]
+      );
+    });
+
+    res.json({ ok: true, created, updated });
+  } catch (e) {
+    console.error('[budgets] bulk error:', e);
+    res.status(500).json({ error: 'Ошибка массового сохранения бюджетов: ' + e.message });
+  }
+});
+
+/* ----------- POST /budgets/copy-from-prev-year -----------
+ * Копирует все бюджеты из (god - 1) в god, домножая plan_summa на коэффициент.
+ * body: { god, koeff = 1.1 }
+ */
+router.post('/copy-from-prev-year', authRequired, onlyDirektor, async (req, res) => {
+  try {
+    const { god, koeff = 1.1 } = req.body;
+    if (!god) return res.status(400).json({ error: 'Укажите god' });
+    const targetGod = Number(god);
+    const k = Number(koeff);
+    if (!Number.isFinite(k) || k <= 0)
+      return res.status(400).json({ error: 'koeff должен быть числом > 0' });
+
+    const result = await pool.transaction(async (tx) => {
+      const [src] = await tx.execute(
+        `SELECT podrazdelenie_id, mesyats, kategoriya, plan_summa
+           FROM byudzhet WHERE god = ?`,
+        [targetGod - 1]
+      );
+      if (!src.length) return { copied: 0 };
+
+      let copied = 0;
+      for (const row of src) {
+        await tx.execute(
+          `INSERT INTO byudzhet (podrazdelenie_id, god, mesyats, kategoriya, plan_summa)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT (podrazdelenie_id, god, mesyats, kategoriya)
+             DO UPDATE SET plan_summa = EXCLUDED.plan_summa`,
+          [row.podrazdelenie_id, targetGod, row.mesyats, row.kategoriya,
+           Math.round(Number(row.plan_summa) * k * 100) / 100]
+        );
+        copied++;
+      }
+
+      await tx.execute(
+        `INSERT INTO finansoviy_log (sotrudnik_id, tip_operatsii, obyekt_tablitsa, summa, kommentariy)
+         VALUES (?, 'COPY_BYUDZHET', 'byudzhet', NULL, ?)`,
+        [req.user.id,
+         `Скопировано ${copied} бюджетных записей с ${targetGod - 1} на ${targetGod} с коэффициентом ${k}`]
+      );
+
+      return { copied };
+    });
+
+    res.json({ ok: true, ...result, target_god: targetGod, source_god: targetGod - 1, koeff: k });
+  } catch (e) {
+    console.error('[budgets] copy-from-prev-year error:', e);
+    res.status(500).json({ error: 'Ошибка копирования бюджетов: ' + e.message });
+  }
+});
+
 /* ----------- POST /budgets ----------- */
 router.post('/', authRequired, onlyDirektor, async (req, res) => {
   try {

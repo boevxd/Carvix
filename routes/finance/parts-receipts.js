@@ -17,6 +17,36 @@ const { requireFinanceRead, requireFinanceWrite } = require('../../middleware/rb
 
 const router = express.Router();
 
+/* ----------- Справочники для выпадашек ----------- */
+// Список запчастей
+router.get('/dictionary/zapchasti', authRequired, requireFinanceRead, async (req, res) => {
+  try {
+    const r = await pool.pool.query(
+      `SELECT id, naimenovanie, artikul, edinitsa_izmereniya AS ed_izm,
+              ostatok_na_sklade
+         FROM zapchast
+        ORDER BY naimenovanie`
+    );
+    res.json(r.rows);
+  } catch (e) {
+    console.error('[receipts] zapchasti error:', e);
+    res.status(500).json({ error: 'Ошибка справочника запчастей' });
+  }
+});
+
+// Список поставщиков
+router.get('/dictionary/postavshiki', authRequired, requireFinanceRead, async (req, res) => {
+  try {
+    const r = await pool.pool.query(
+      `SELECT id, nazvanie, kontakty FROM postavshik ORDER BY nazvanie`
+    );
+    res.json(r.rows);
+  } catch (e) {
+    console.error('[receipts] postavshiki error:', e);
+    res.status(500).json({ error: 'Ошибка справочника поставщиков' });
+  }
+});
+
 /* ----------- GET /parts/receipts ----------- */
 router.get('/', authRequired, requireFinanceRead, async (req, res) => {
   try {
