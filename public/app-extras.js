@@ -393,6 +393,13 @@
       head.appendChild(actions);
     }
 
+    // Кнопка «Прогноз расходов»
+    const fcBtn = document.createElement('button');
+    fcBtn.className = 'btn';
+    fcBtn.innerHTML = `📈 ${T('forecast.btn')}`;
+    fcBtn.onclick = openForecastDialog;
+    actions.appendChild(fcBtn);
+
     // Кнопка «Редактор бюджетов»
     const editBtn = document.createElement('button');
     editBtn.className = 'btn dark';
@@ -410,6 +417,253 @@
       god: document.querySelector('#bGod')?.value || new Date().getFullYear(),
     });
     actions.appendChild(expBtn);
+  }
+
+  /* =========================================================
+     8.b ПРОГНОЗ РАСХОДОВ — модалка с Chart.js (Holt-Winters)
+     ========================================================= */
+  async function openForecastDialog() {
+    const KATS = [
+      { id: '',          label: T('forecast.all_categories') || 'Все категории' },
+      { id: 'topliv',    label: T('cat.topliv')    || 'Топливо' },
+      { id: 'remont',    label: T('cat.remont')    || 'Ремонт' },
+      { id: 'zapchasti', label: T('cat.zapchasti') || 'Запчасти' },
+      { id: 'prochee',   label: T('cat.prochee')   || 'Прочее' },
+    ];
+
+    const bg = document.createElement('div');
+    bg.className = 'modal-bg';
+    bg.innerHTML = `
+      <div class="modal modal--wide forecast-modal">
+        <div class="be-head">
+          <h3>📈 ${T('forecast.title') || 'Прогноз расходов (Holt-Winters)'}</h3>
+          <button class="btn-close" id="fcClose">×</button>
+        </div>
+        <p class="be-intro">${T('forecast.intro') || 'Прогноз построен методом тройного экспоненциального сглаживания на основе исторических расходов за последние 3 года. Серая зона — 95% доверительный интервал.'}</p>
+
+        <div class="be-toolbar">
+          <label>${T('forecast.category') || 'Категория'}
+            <select id="fcKat">
+              ${KATS.map(k => `<option value="${k.id}">${k.label}</option>`).join('')}
+            </select>
+          </label>
+          <label>${T('forecast.horizon') || 'Горизонт (мес.)'}
+            <input type="number" id="fcHorizon" value="12" min="1" max="24" style="width:90px" />
+          </label>
+          <span class="spacer"></span>
+          <span id="fcMethodBadge" class="be-status"></span>
+          <button class="btn dark" id="fcRefresh">🔄 ${T('forecast.refresh') || 'Обновить'}</button>
+        </div>
+
+        <div class="forecast-chart-wrap">
+          <canvas id="fcChart"></canvas>
+        </div>
+
+        <div class="forecast-summary" id="fcSummary"></div>
+      </div>`;
+    document.body.appendChild(bg);
+    bg.addEventListener('click', e => { if (e.target === bg) close(); });
+    bg.querySelector('#fcClose').onclick = close;
+
+    let chart = null;
+    function close() {
+      if (chart) { chart.destroy(); chart = null; }
+      bg.remove();
+    }
+
+    async function load() {
+      const kat = bg.querySelector('#fcKat').value;
+      const horizon = +bg.querySelector('#fcHorizon').value || 12;
+      const badge = bg.querySelector('#fcMethodBadge');
+      const summary = bg.querySelector('#fcSummary');
+      badge.textContent = T('forecast.loading') || 'Загрузка…';
+      summary.innerHTML = '';
+
+      try {
+        const qs = new URLSearchParams({ horizon: String(horizon) });
+        if (kat) qs.set('kategoriya', kat);
+
+        const data = await window.api(`/api/finance/reports/forecast?${qs}`);
+
+        const methodLabels = {
+          'holt-winters': T('forecast.method.hw')    || 'Holt-Winters (тройное экспоненциальное сглаживание)',
+          'linear-trend': T('forecast.method.lin')   || 'Линейная регрессия',
+          'mean':         T('forecast.method.mean')  || 'Среднее',
+          'no-data':      T('forecast.method.empty') || 'Нет исторических данных',
+        };
+        badge.textContent = methodLabels[data.method] || data.method;
+
+        if (!data.history.length) {
+          summary.innerHTML = `<div class="forecast-empty">${T('forecast.no_history') || 'Нет исторических данных за выбранный период. Введите расходы или измените фильтры.'}</div>`;
+          if (chart) { chart.destroy(); chart = null; }
+          return;
+        }
+
+        renderChart(data);
+        renderSummary(data, horizon);
+      } catch (e) {
+        badge.textContent = '';
+        summary.innerHTML = `<div class="forecast-empty" style="color:var(--c-bad)">${e.message}</div>`;
+      }
+    }
+
+    function fmtMonth(g, m) {
+      const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+      return `${months[m - 1]} ${String(g).slice(2)}`;
+    }
+    function fmtMoney(n) {
+      return Number(n).toLocaleString('ru-RU', { maximumFractionDigits: 0 }) + ' ₽';
+    }
+
+    function renderChart(data) {
+      const labels  = [
+        ...data.history.map(p => fmtMonth(p.god, p.mesyats)),
+        ...data.forecast.map(p => fmtMonth(p.god, p.mesyats)),
+      ];
+      const histLen = data.history.length;
+      const histData     = [...data.history.map(p => Number(p.summa)), ...new Array(data.forecast.length).fill(null)];
+      const fcData       = [
+        ...new Array(histLen - 1).fill(null),
+        // соединительная точка — последнее значение истории
+        Number(data.history[histLen - 1].summa),
+        ...data.forecast.map(p => p.point),
+      ];
+      const lowerBand    = [
+        ...new Array(histLen - 1).fill(null),
+        Number(data.history[histLen - 1].summa),
+        ...data.forecast.map(p => p.lower),
+      ];
+      const upperBand    = [
+        ...new Array(histLen - 1).fill(null),
+        Number(data.history[histLen - 1].summa),
+        ...data.forecast.map(p => p.upper),
+      ];
+
+      const isDark = document.documentElement.dataset.theme === 'dark';
+      const accent     = '#b89460';
+      const fcColor    = '#10b981';
+      const bandColor  = 'rgba(16, 185, 129, 0.12)';
+      const gridColor  = isDark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.06)';
+      const textColor  = isDark ? '#e9e2d3' : '#33312c';
+
+      if (chart) chart.destroy();
+      chart = new Chart(bg.querySelector('#fcChart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: T('forecast.history') || 'Факт',
+              data: histData,
+              borderColor: accent,
+              backgroundColor: 'transparent',
+              tension: 0.3,
+              spanGaps: false,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+            },
+            {
+              label: T('forecast.forecast_label') || 'Прогноз',
+              data: fcData,
+              borderColor: fcColor,
+              borderDash: [6, 4],
+              backgroundColor: 'transparent',
+              tension: 0.3,
+              spanGaps: false,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+            },
+            {
+              label: T('forecast.upper') || 'Верхняя граница CI',
+              data: upperBand,
+              borderColor: 'transparent',
+              backgroundColor: bandColor,
+              fill: '+1',                       // заливка ДО следующего dataset (нижней границы)
+              tension: 0.3,
+              pointRadius: 0,
+            },
+            {
+              label: T('forecast.lower') || 'Нижняя граница CI',
+              data: lowerBand,
+              borderColor: 'transparent',
+              backgroundColor: bandColor,
+              fill: false,
+              tension: 0.3,
+              pointRadius: 0,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              labels: {
+                color: textColor,
+                filter: (item) => !/CI$/.test(item.text), // не показывать обе границы CI
+              },
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y == null ? '—' : fmtMoney(ctx.parsed.y)}`,
+              },
+            },
+          },
+          scales: {
+            x: { ticks: { color: textColor }, grid: { color: gridColor } },
+            y: {
+              ticks: { color: textColor, callback: (v) => fmtMoney(v) },
+              grid:  { color: gridColor },
+              beginAtZero: true,
+            },
+          },
+        },
+      });
+    }
+
+    function renderSummary(data, horizon) {
+      const sumForecast = data.forecast.reduce((s, p) => s + p.point, 0);
+      const lastYearSum = data.history.slice(-12).reduce((s, p) => s + Number(p.summa), 0);
+      const deltaPct = lastYearSum
+        ? Math.round(((sumForecast - lastYearSum) / lastYearSum) * 1000) / 10
+        : null;
+
+      const peakIdx = data.forecast.reduce((bi, p, i) => p.point > data.forecast[bi].point ? i : bi, 0);
+      const peak = data.forecast[peakIdx];
+
+      const cards = [
+        {
+          label: T('forecast.sum') || `Прогноз на ${horizon} мес.`,
+          value: fmtMoney(sumForecast),
+          hint: data.method === 'holt-winters' ? `RMSE ≈ ${fmtMoney(data.rmse)}` : '',
+        },
+        {
+          label: T('forecast.delta_yoy') || 'YoY (год к году)',
+          value: deltaPct == null ? '—' : (deltaPct > 0 ? `+${deltaPct}%` : `${deltaPct}%`),
+          hint: T('forecast.delta_hint') || 'Прогноз vs последние 12 мес.',
+          color: deltaPct == null ? '' : (deltaPct > 5 ? 'bad' : (deltaPct < -5 ? 'good' : '')),
+        },
+        {
+          label: T('forecast.peak') || 'Пиковый месяц',
+          value: peak ? fmtMonth(peak.god, peak.mesyats) : '—',
+          hint: peak ? fmtMoney(peak.point) : '',
+        },
+      ];
+
+      bg.querySelector('#fcSummary').innerHTML = cards.map(c => `
+        <div class="forecast-card ${c.color || ''}">
+          <div class="forecast-card__label">${c.label}</div>
+          <div class="forecast-card__value">${c.value}</div>
+          ${c.hint ? `<div class="forecast-card__hint">${c.hint}</div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    bg.querySelector('#fcRefresh').onclick = load;
+    bg.querySelector('#fcKat').onchange = load;
+    bg.querySelector('#fcHorizon').onchange = load;
+    load();
   }
 
   async function openBudgetEditor() {

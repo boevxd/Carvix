@@ -252,6 +252,29 @@
 
       // ---- Дашборд export ----
       'dashboard.monthly_pdf':    'Отчёт месяца (PDF)',
+
+      // ---- Прогноз ----
+      'forecast.btn':             'Прогноз расходов',
+      'forecast.title':           'Прогноз расходов (Holt-Winters)',
+      'forecast.intro':           'Прогноз построен методом тройного экспоненциального сглаживания на основе исторических расходов за последние 3 года. Серая зона — 95%-й доверительный интервал.',
+      'forecast.category':        'Категория',
+      'forecast.all_categories':  'Все категории',
+      'forecast.horizon':         'Горизонт (мес.)',
+      'forecast.refresh':         'Обновить',
+      'forecast.loading':         'Загрузка…',
+      'forecast.history':         'Факт',
+      'forecast.forecast_label':  'Прогноз',
+      'forecast.upper':           'Верхняя граница CI',
+      'forecast.lower':           'Нижняя граница CI',
+      'forecast.method.hw':       'Holt-Winters (тройное экспоненциальное сглаживание)',
+      'forecast.method.lin':      'Линейная регрессия',
+      'forecast.method.mean':     'Среднее',
+      'forecast.method.empty':    'Нет исторических данных',
+      'forecast.no_history':      'Нет исторических данных за выбранный период. Введите расходы или измените фильтры.',
+      'forecast.sum':             'Прогноз (сумма)',
+      'forecast.delta_yoy':       'YoY (год к году)',
+      'forecast.delta_hint':      'Прогноз vs последние 12 мес.',
+      'forecast.peak':            'Пиковый месяц',
     },
 
     en: {
@@ -496,6 +519,29 @@
 
       // ---- Dashboard export ----
       'dashboard.monthly_pdf':    'Monthly report (PDF)',
+
+      // ---- Forecast ----
+      'forecast.btn':             'Expense forecast',
+      'forecast.title':           'Expense Forecast (Holt-Winters)',
+      'forecast.intro':           'Forecast built using triple exponential smoothing on the last 3 years of historical expenses. Grey band is the 95% confidence interval.',
+      'forecast.category':        'Category',
+      'forecast.all_categories':  'All categories',
+      'forecast.horizon':         'Horizon (months)',
+      'forecast.refresh':         'Refresh',
+      'forecast.loading':         'Loading…',
+      'forecast.history':         'Actual',
+      'forecast.forecast_label':  'Forecast',
+      'forecast.upper':           'Upper CI bound',
+      'forecast.lower':           'Lower CI bound',
+      'forecast.method.hw':       'Holt-Winters (triple exponential smoothing)',
+      'forecast.method.lin':      'Linear regression',
+      'forecast.method.mean':     'Mean',
+      'forecast.method.empty':    'No historical data',
+      'forecast.no_history':      'No historical data for the selected period. Enter expenses or change filters.',
+      'forecast.sum':             'Forecast (total)',
+      'forecast.delta_yoy':       'YoY (year over year)',
+      'forecast.delta_hint':      'Forecast vs last 12 months',
+      'forecast.peak':            'Peak month',
     },
   };
 

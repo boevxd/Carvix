@@ -10,6 +10,7 @@ const express = require('express');
 const pool = require('../../db');
 const { authRequired } = require('../../middleware/auth');
 const { requireFinanceRead } = require('../../middleware/rbac');
+const { autoForecast } = require('../../services/forecast');
 
 const router = express.Router();
 
@@ -244,5 +245,128 @@ router.get('/dashboard', authRequired, requireFinanceRead, async (req, res) => {
     res.status(500).json({ error: 'Ошибка дашборда' });
   }
 });
+
+/* ----------------------------------------------------------------- */
+/*  GET /reports/forecast                                            */
+/*                                                                   */
+/*    Прогноз расходов на N месяцев вперёд по методу Holt-Winters    */
+/*    (тройное экспоненциальное сглаживание с сезонностью).          */
+/*                                                                   */
+/*    Параметры:                                                     */
+/*      • horizon=12              — на сколько месяцев предсказать;  */
+/*      • kategoriya=topliv       — фильтр по категории расходов;    */
+/*      • podrazdelenie_id=1      — фильтр по подразделению;         */
+/*      • years_back=3            — глубина истории (по умолч. 3 года). */
+/*                                                                   */
+/*    Возвращает:                                                    */
+/*      {                                                            */
+/*        history: [{ god, mesyats, summa }],                        */
+/*        forecast: [{ year, mesyats, point, lower, upper }],        */
+/*        method: 'holt-winters' | 'linear-trend' | 'mean',          */
+/*        rmse, level, trend                                         */
+/*      }                                                            */
+/* ----------------------------------------------------------------- */
+router.get('/forecast', authRequired, requireFinanceRead, async (req, res) => {
+  try {
+    const horizon         = Math.max(1, Math.min(24, parseInt(req.query.horizon, 10) || 12));
+    const yearsBack       = Math.max(1, Math.min(10, parseInt(req.query.years_back, 10) || 3));
+    const kategoriya      = (req.query.kategoriya || '').trim();
+    const podrazdelenieId = parseInt(req.query.podrazdelenie_id, 10) || null;
+
+    const minGod = new Date().getFullYear() - yearsBack;
+
+    const where = ['v.god >= $1'];
+    const params = [minGod];
+    if (kategoriya) {
+      params.push(kategoriya);
+      where.push(`v.kategoriya = $${params.length}`);
+    }
+    if (podrazdelenieId) {
+      params.push(podrazdelenieId);
+      where.push(`v.podrazdelenie_id = $${params.length}`);
+    }
+
+    const sql = `
+      SELECT v.god, v.mesyats, COALESCE(SUM(v.fakt_summa), 0)::numeric AS summa
+        FROM v_fakt_po_podrazdeleniyu v
+       WHERE ${where.join(' AND ')}
+       GROUP BY v.god, v.mesyats
+       ORDER BY v.god ASC, v.mesyats ASC
+    `;
+    const r = await pool.pool.query(sql, params);
+
+    // Достраиваем нулями пропущенные месяцы, чтобы серия была равномерной
+    const series = buildContinuousSeries(r.rows, minGod);
+
+    if (series.points.length === 0) {
+      return res.json({
+        history: [], forecast: [], method: 'no-data',
+        rmse: 0, level: 0, trend: 0,
+        params: { horizon, kategoriya, podrazdelenie_id: podrazdelenieId, years_back: yearsBack },
+      });
+    }
+
+    const y = series.points.map((p) => Number(p.summa));
+    const result = autoForecast(y, { horizon });
+
+    // Прикладываем (god, mesyats) к точкам прогноза
+    const lastPoint = series.points[series.points.length - 1];
+    const forecastDated = result.forecast.map((f, i) => {
+      const m0 = lastPoint.mesyats + f.step;
+      const yearsAdd = Math.floor((m0 - 1) / 12);
+      const month = ((m0 - 1) % 12) + 1;
+      return {
+        ...f,
+        god: lastPoint.god + yearsAdd,
+        mesyats: month,
+      };
+    });
+
+    res.json({
+      history: series.points,
+      forecast: forecastDated,
+      method: result.method,
+      rmse:  result.rmse  ?? null,
+      level: result.level ?? null,
+      trend: result.trend ?? null,
+      params: { horizon, kategoriya, podrazdelenie_id: podrazdelenieId, years_back: yearsBack },
+    });
+  } catch (e) {
+    console.error('[reports/forecast] error:', e);
+    res.status(500).json({ error: 'Ошибка прогноза: ' + e.message });
+  }
+});
+
+/**
+ * Превращает разреженный набор {god, mesyats, summa} в непрерывную серию
+ * месяцев от первого месяца с данными до текущего, заполняя пропуски нулями.
+ */
+function buildContinuousSeries(rows, minGod) {
+  if (!rows.length) return { points: [] };
+
+  const map = new Map();
+  for (const r of rows) {
+    const key = `${r.god}-${r.mesyats}`;
+    map.set(key, Number(r.summa));
+  }
+
+  // Берём от самой ранней (god, mesyats) с данными до самой поздней
+  const sorted = rows.slice().sort((a, b) => a.god - b.god || a.mesyats - b.mesyats);
+  const first = sorted[0];
+  const last  = sorted[sorted.length - 1];
+
+  const points = [];
+  let g = first.god, m = first.mesyats;
+  while (g < last.god || (g === last.god && m <= last.mesyats)) {
+    points.push({
+      god: g,
+      mesyats: m,
+      summa: map.get(`${g}-${m}`) ?? 0,
+    });
+    m++;
+    if (m > 12) { m = 1; g++; }
+  }
+  return { points };
+}
 
 module.exports = router;

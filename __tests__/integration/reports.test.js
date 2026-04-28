@@ -187,3 +187,163 @@ describe('GET /api/finance/reports/dashboard', () => {
     expect(r.body.kpi.delta_pct).toBeNull();
   });
 });
+
+/* =============================================================
+   GET /api/finance/reports/forecast (Holt-Winters)
+   ============================================================= */
+describe('GET /api/finance/reports/forecast', () => {
+  /** Генерирует 36 точек {god, mesyats, summa} с сезонностью. */
+  function makeSeasonalSeries(startYear = 2023) {
+    const factors = [1.4, 1.3, 1.1, 0.9, 0.8, 0.7, 0.7, 0.8, 0.9, 1.1, 1.2, 1.4];
+    const rows = [];
+    for (let y = 0; y < 3; y++) {
+      for (let m = 0; m < 12; m++) {
+        rows.push({
+          god: startYear + y,
+          mesyats: m + 1,
+          summa: String(50000 * factors[m]),
+        });
+      }
+    }
+    return rows;
+  }
+
+  it('401 без токена', async () => {
+    await request(app).get('/api/finance/reports/forecast').expect(401);
+  });
+
+  it('200 + history + forecast + method=holt-winters при 36 месяцах данных', async () => {
+    mockDb.__when(/FROM v_fakt_po_podrazdeleniyu v\s+WHERE/i, makeSeasonalSeries());
+
+    const r = await request(app)
+      .get('/api/finance/reports/forecast?horizon=12&kategoriya=topliv')
+      .set('Authorization', directorAuth)
+      .expect(200);
+
+    expect(r.body.method).toBe('holt-winters');
+    expect(r.body.history).toHaveLength(36);
+    expect(r.body.forecast).toHaveLength(12);
+
+    // Каждая точка прогноза имеет (god, mesyats, point, lower, upper)
+    for (const f of r.body.forecast) {
+      expect(f).toEqual(expect.objectContaining({
+        god: expect.any(Number),
+        mesyats: expect.any(Number),
+        step: expect.any(Number),
+        point: expect.any(Number),
+        lower: expect.any(Number),
+        upper: expect.any(Number),
+      }));
+      expect(f.lower).toBeLessThanOrEqual(f.point);
+      expect(f.upper).toBeGreaterThanOrEqual(f.point);
+    }
+
+    // Параметры эхом возвращаются клиенту
+    expect(r.body.params).toMatchObject({
+      horizon: 12, kategoriya: 'topliv', podrazdelenie_id: null,
+    });
+  });
+
+  it('horizon обрезается до 24 (валидация)', async () => {
+    mockDb.__when(/FROM v_fakt_po_podrazdeleniyu/i, makeSeasonalSeries());
+    const r = await request(app)
+      .get('/api/finance/reports/forecast?horizon=999')
+      .set('Authorization', directorAuth)
+      .expect(200);
+    expect(r.body.params.horizon).toBe(24);
+    expect(r.body.forecast).toHaveLength(24);
+  });
+
+  it('horizon < 1 защищается до 1', async () => {
+    mockDb.__when(/FROM v_fakt_po_podrazdeleniyu/i, makeSeasonalSeries());
+    const r = await request(app)
+      .get('/api/finance/reports/forecast?horizon=0')
+      .set('Authorization', directorAuth)
+      .expect(200);
+    expect(r.body.params.horizon).toBe(12); // 0 → fallback на дефолт 12
+  });
+
+  it('пустая история → method=no-data, forecast=[]', async () => {
+    mockDb.__when(/FROM v_fakt_po_podrazdeleniyu/i, []);
+    const r = await request(app)
+      .get('/api/finance/reports/forecast')
+      .set('Authorization', directorAuth)
+      .expect(200);
+    expect(r.body.method).toBe('no-data');
+    expect(r.body.history).toEqual([]);
+    expect(r.body.forecast).toEqual([]);
+  });
+
+  it('< 24 месяцев данных → method=linear-trend (fallback)', async () => {
+    // Только 6 месяцев — недостаточно для Holt-Winters
+    const rows = [];
+    for (let m = 1; m <= 6; m++) {
+      rows.push({ god: 2026, mesyats: m, summa: String(10000 + m * 1000) });
+    }
+    mockDb.__when(/FROM v_fakt_po_podrazdeleniyu/i, rows);
+
+    const r = await request(app)
+      .get('/api/finance/reports/forecast?horizon=3')
+      .set('Authorization', directorAuth)
+      .expect(200);
+
+    expect(r.body.method).toBe('linear-trend');
+    expect(r.body.forecast).toHaveLength(3);
+  });
+
+  it('фильтры kategoriya и podrazdelenie_id пробрасываются в SQL', async () => {
+    mockDb.__when(/FROM v_fakt_po_podrazdeleniyu/i, []);
+
+    await request(app)
+      .get('/api/finance/reports/forecast?kategoriya=topliv&podrazdelenie_id=2')
+      .set('Authorization', directorAuth)
+      .expect(200);
+
+    const call = mockDb.__find(/FROM v_fakt_po_podrazdeleniyu v\s+WHERE/i);
+    // Параметры: [minGod, kategoriya, podrazdelenie_id]
+    expect(call.params[1]).toBe('topliv');
+    expect(call.params[2]).toBe(2);
+  });
+
+  it('пропуски в исторических данных заполняются нулями (непрерывная серия)', async () => {
+    // Подаём только январь и март; февраль должен оказаться нулём
+    mockDb.__when(/FROM v_fakt_po_podrazdeleniyu/i, [
+      { god: 2026, mesyats: 1, summa: '1000' },
+      { god: 2026, mesyats: 3, summa: '3000' },
+    ]);
+
+    const r = await request(app)
+      .get('/api/finance/reports/forecast')
+      .set('Authorization', directorAuth)
+      .expect(200);
+
+    expect(r.body.history).toEqual([
+      { god: 2026, mesyats: 1, summa: 1000 },
+      { god: 2026, mesyats: 2, summa: 0 },
+      { god: 2026, mesyats: 3, summa: 3000 },
+    ]);
+  });
+
+  it('даты прогноза идут последовательно после последнего наблюдения (с переходом через год)', async () => {
+    // Серия заканчивается октябрём 2026 → прогноз: ноябрь, декабрь, январь 2027
+    const rows = [];
+    for (let g = 2024; g <= 2025; g++) {
+      for (let m = 1; m <= 12; m++) {
+        rows.push({ god: g, mesyats: m, summa: '1000' });
+      }
+    }
+    for (let m = 1; m <= 10; m++) {
+      rows.push({ god: 2026, mesyats: m, summa: '1000' });
+    }
+    mockDb.__when(/FROM v_fakt_po_podrazdeleniyu/i, rows);
+
+    const r = await request(app)
+      .get('/api/finance/reports/forecast?horizon=4')
+      .set('Authorization', directorAuth)
+      .expect(200);
+
+    expect(r.body.forecast.map((f) => `${f.god}-${f.mesyats}`)).toEqual([
+      '2026-11', '2026-12', '2027-1', '2027-2',
+    ]);
+  });
+});
