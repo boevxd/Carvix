@@ -11,23 +11,30 @@ let CURRENT_CHARTS = [];      // активные Chart.js инстансы (д�
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
+// Алиас на i18n (window.t, window.applyI18n, window.getLang определены в i18n.js).
+const T = (key, vars) => window.t(key, vars);
+const LOC = () => (window.getLang() === 'en' ? 'en-US' : 'ru-RU');
+
 /* ----------------- Утилиты ----------------- */
 function fmtMoney(v) {
   const n = Number(v) || 0;
-  return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(n) + ' ₽';
+  return new Intl.NumberFormat(LOC(), { maximumFractionDigits: 0 }).format(n) + ' ₽';
 }
 function fmtDate(s) {
   if (!s) return '—';
   const d = new Date(s);
   if (isNaN(d)) return s;
-  return d.toLocaleDateString('ru-RU');
+  return d.toLocaleDateString(LOC());
 }
 function fmtDateTime(s) {
   if (!s) return '—';
   const d = new Date(s);
   if (isNaN(d)) return s;
-  return d.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
+  return d.toLocaleString(LOC(), { dateStyle: 'short', timeStyle: 'short' });
 }
+
+/** Получить переведённое название категории. */
+function catLabel(k) { return T('cat.' + k) || k; }
 function escape(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
     ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])
@@ -92,6 +99,25 @@ $('#logoutBtn').addEventListener('click', () => {
   location.replace('/');
 });
 
+/* ----------------- Theme & Lang toggles ----------------- */
+$('#themeToggle')?.addEventListener('click', () => window.toggleTheme());
+
+function syncLangButtons() {
+  const cur = window.getLang();
+  $$('.lang-toggle__btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.lang === cur)
+  );
+}
+$$('.lang-toggle__btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    window.setLang(btn.dataset.lang);
+    syncLangButtons();
+    // Перерендерим текущий раздел, чтобы динамические строки тоже перевелись
+    navigate();
+  });
+});
+syncLangButtons();
+
 /* ----------------- Router ----------------- */
 const ROUTES = {
   dashboard: renderDashboard,
@@ -116,13 +142,13 @@ function navigate() {
   CURRENT_CHARTS = [];
 
   const root = $('#content');
-  root.innerHTML = `<div class="loading-screen"><div class="spinner"></div><div>Загрузка раздела…</div></div>`;
+  root.innerHTML = `<div class="loading-screen"><div class="spinner"></div><div>${T('common.loading')}</div></div>`;
 
   Promise.resolve(handler(root))
     .catch(e => {
       console.error(e);
-      root.innerHTML = `<div class="empty">⚠ ${escape(e.message || 'Ошибка загрузки')}</div>`;
-      if (e.status === 403) toast('Недостаточно прав для этого раздела', 'error');
+      root.innerHTML = `<div class="empty">⚠ ${escape(e.message || T('toast.auth_error'))}</div>`;
+      if (e.status === 403) toast(T('toast.no_rights'), 'error');
     });
 }
 
@@ -135,63 +161,69 @@ async function renderDashboard(root) {
   const year = new Date().getFullYear();
   const data = await api(`/api/finance/reports/dashboard?god=${year}`);
 
-  const monthNames = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+  // Месяцы — короткие, через Intl чтобы локализовалось автоматически.
+  const monthNames = Array.from({ length: 12 }, (_, i) =>
+    new Date(2000, i, 1).toLocaleDateString(LOC(), { month: 'short' })
+  );
   const kpi = data.kpi;
+  const tickColor = getComputedStyle(document.documentElement).getPropertyValue('--c-muted').trim();
+  const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--c-border').trim();
+
   const deltaArrow =
     kpi.delta_pct == null ? '' :
-    kpi.delta_pct > 0 ? `<span class="kpi-card__hint up">▲ +${kpi.delta_pct}% к предыдущему</span>` :
-                        `<span class="kpi-card__hint down">▼ ${kpi.delta_pct}% к предыдущему</span>`;
+    kpi.delta_pct > 0 ? `<span class="kpi-card__hint up">${T('dashboard.delta_up',   { n: kpi.delta_pct })}</span>` :
+                        `<span class="kpi-card__hint down">${T('dashboard.delta_down', { n: kpi.delta_pct })}</span>`;
 
   root.innerHTML = `
     <div class="section__head">
       <div>
-        <h2 class="section__title">Дашборд</h2>
-        <div class="section__subtitle">Финансовый обзор за ${year} год</div>
+        <h2 class="section__title">${T('dashboard.title')}</h2>
+        <div class="section__subtitle">${T('dashboard.subtitle', { year })}</div>
       </div>
     </div>
 
     <div class="cards-grid">
       <div class="kpi-card">
-        <div class="kpi-card__label">Расходы за месяц</div>
+        <div class="kpi-card__label">${T('dashboard.kpi_month')}</div>
         <div class="kpi-card__value">${fmtMoney(kpi.tek_mesyats)}</div>
         ${deltaArrow}
       </div>
       <div class="kpi-card">
-        <div class="kpi-card__label">План на год</div>
+        <div class="kpi-card__label">${T('dashboard.kpi_plan')}</div>
         <div class="kpi-card__value">${fmtMoney(kpi.plan_god)}</div>
-        <div class="kpi-card__hint">факт: ${fmtMoney(kpi.fakt_god)}</div>
+        <div class="kpi-card__hint">${T('dashboard.fact')}: ${fmtMoney(kpi.fakt_god)}</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-card__label">Отклонение от плана</div>
+        <div class="kpi-card__label">${T('dashboard.kpi_dev')}</div>
         <div class="kpi-card__value" style="color: ${kpi.otklonenie_god < 0 ? 'var(--c-bad)' : 'var(--c-good)'}">
           ${kpi.otklonenie_god < 0 ? '−' : '+'}${fmtMoney(Math.abs(kpi.otklonenie_god))}
         </div>
-        <div class="kpi-card__hint">${kpi.otklonenie_god < 0 ? 'перерасход' : 'остаток'}</div>
+        <div class="kpi-card__hint">${kpi.otklonenie_god < 0 ? T('dashboard.over') : T('dashboard.left')}</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-card__label">Кол-во машин в топ-5</div>
+        <div class="kpi-card__label">${T('dashboard.kpi_top')}</div>
         <div class="kpi-card__value">${data.top_ts.length}</div>
-        <div class="kpi-card__hint">по стоимости владения</div>
+        <div class="kpi-card__hint">${T('dashboard.tco_top_hint')}</div>
       </div>
     </div>
 
     <div class="charts-row">
       <div class="chart-card">
-        <h3>Динамика расходов помесячно</h3>
+        <h3>${T('dashboard.dynamics')}</h3>
         <canvas id="dynChart"></canvas>
       </div>
       <div class="chart-card">
-        <h3>Структура затрат</h3>
+        <h3>${T('dashboard.structure')}</h3>
         <canvas id="pieChart"></canvas>
       </div>
     </div>
 
     <div class="table-card">
-      <h3>Топ-5 машин по стоимости владения (TCO)</h3>
+      <h3>${T('dashboard.top5')}</h3>
       <table class="tbl">
         <thead><tr>
-          <th>Гос. №</th><th>Марка / модель</th><th>Подразделение</th>
-          <th class="num">Ремонтов</th><th class="num">TCO</th>
+          <th>${T('tco.col_plate')}</th><th>${T('tco.col_model')}</th><th>${T('tco.col_division')}</th>
+          <th class="num">${T('tco.col_repairs')}</th><th class="num">${T('tco.col_tco')}</th>
         </tr></thead>
         <tbody>
           ${data.top_ts.map(t => `
@@ -202,7 +234,7 @@ async function renderDashboard(root) {
               <td class="num">${t.kolvo_remontov}</td>
               <td class="num"><strong>${fmtMoney(t.tco)}</strong></td>
             </tr>
-          `).join('') || `<tr><td colspan="5" class="empty">Нет данных</td></tr>`}
+          `).join('') || `<tr><td colspan="5" class="empty">${T('common.no_data')}</td></tr>`}
         </tbody>
       </table>
     </div>
@@ -214,16 +246,19 @@ async function renderDashboard(root) {
     data: {
       labels: data.dynamics.map(d => monthNames[d.mesyats - 1]),
       datasets: [
-        { label: 'Ремонт',    data: data.dynamics.map(d => +d.remont),    borderColor: '#b89460', backgroundColor: 'rgba(184,148,96,.15)', fill: true, tension: .35 },
-        { label: 'Запчасти',  data: data.dynamics.map(d => +d.zapchasti), borderColor: '#2f5a9c', backgroundColor: 'rgba(47,90,156,.10)',  fill: true, tension: .35 },
-        { label: 'Топливо',   data: data.dynamics.map(d => +d.topliv),    borderColor: '#2f8f5e', backgroundColor: 'rgba(47,143,94,.10)',  fill: true, tension: .35 },
-        { label: 'Прочее',    data: data.dynamics.map(d => +d.prochee),   borderColor: '#b94a48', backgroundColor: 'rgba(185,74,72,.10)',  fill: true, tension: .35 },
+        { label: T('cat.remont'),    data: data.dynamics.map(d => +d.remont),    borderColor: '#b89460', backgroundColor: 'rgba(184,148,96,.15)', fill: true, tension: .35 },
+        { label: T('cat.zapchasti'), data: data.dynamics.map(d => +d.zapchasti), borderColor: '#2f5a9c', backgroundColor: 'rgba(47,90,156,.10)',  fill: true, tension: .35 },
+        { label: T('cat.topliv'),    data: data.dynamics.map(d => +d.topliv),    borderColor: '#2f8f5e', backgroundColor: 'rgba(47,143,94,.10)',  fill: true, tension: .35 },
+        { label: T('cat.prochee'),   data: data.dynamics.map(d => +d.prochee),   borderColor: '#b94a48', backgroundColor: 'rgba(185,74,72,.10)',  fill: true, tension: .35 },
       ],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } },
-      scales: { y: { ticks: { callback: v => Intl.NumberFormat('ru-RU', { notation: 'compact' }).format(v) } } },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, color: tickColor } } },
+      scales: {
+        x: { ticks: { color: tickColor }, grid: { color: gridColor } },
+        y: { ticks: { color: tickColor, callback: v => Intl.NumberFormat(LOC(), { notation: 'compact' }).format(v) }, grid: { color: gridColor } },
+      },
     },
   }));
 
@@ -231,7 +266,7 @@ async function renderDashboard(root) {
   CURRENT_CHARTS.push(new Chart($('#pieChart'), {
     type: 'doughnut',
     data: {
-      labels: data.struktura.map(s => s.kategoriya),
+      labels: data.struktura.map(s => catLabel(s.kategoriya)),
       datasets: [{
         data: data.struktura.map(s => +s.summa),
         backgroundColor: ['#b89460','#2f5a9c','#2f8f5e','#b94a48','#c69317','#776e63','#9b6b9b'],
@@ -239,7 +274,7 @@ async function renderDashboard(root) {
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } },
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, color: tickColor } } },
     },
   }));
 }
@@ -251,38 +286,38 @@ async function renderExpenses(root) {
   root.innerHTML = `
     <div class="section__head">
       <div>
-        <h2 class="section__title">Расходы</h2>
-        <div class="section__subtitle">Объединённая лента всех затрат</div>
+        <h2 class="section__title">${T('expenses.title')}</h2>
+        <div class="section__subtitle">${T('expenses.subtitle')}</div>
       </div>
-      <button class="btn dark" id="addExpenseBtn">+ Добавить расход</button>
+      <button class="btn dark" id="addExpenseBtn">${T('expenses.add')}</button>
     </div>
 
     <div class="filters">
-      <label>С даты <input type="date" id="fFrom" /></label>
-      <label>По дату <input type="date" id="fTo" /></label>
-      <label>Категория
+      <label>${T('filter.from')} <input type="date" id="fFrom" /></label>
+      <label>${T('filter.to')}   <input type="date" id="fTo" /></label>
+      <label>${T('filter.category')}
         <select id="fKat">
-          <option value="">Все</option>
-          <option value="remont">Ремонт</option>
-          <option value="zapchasti">Запчасти</option>
-          <option value="topliv">Топливо</option>
-          <option value="strakhovka">Страховка</option>
-          <option value="nalog">Налог</option>
-          <option value="moyka">Мойка</option>
-          <option value="prochee">Прочее</option>
+          <option value="">${T('common.all')}</option>
+          <option value="remont">${T('cat.remont')}</option>
+          <option value="zapchasti">${T('cat.zapchasti')}</option>
+          <option value="topliv">${T('cat.topliv')}</option>
+          <option value="strakhovka">${T('cat.strakhovka')}</option>
+          <option value="nalog">${T('cat.nalog')}</option>
+          <option value="moyka">${T('cat.moyka')}</option>
+          <option value="prochee">${T('cat.prochee')}</option>
         </select>
       </label>
-      <label>Источник
+      <label>${T('filter.source')}
         <select id="fSrc">
-          <option value="all">Все</option>
-          <option value="prochiy">Прочие</option>
-          <option value="remont_rabot">Работы</option>
-          <option value="remont_zapchasti">Запчасти ремонтов</option>
+          <option value="all">${T('filter.src_all')}</option>
+          <option value="prochiy">${T('filter.src_misc')}</option>
+          <option value="remont_rabot">${T('filter.src_works')}</option>
+          <option value="remont_zapchasti">${T('filter.src_repair_parts')}</option>
         </select>
       </label>
       <div class="spacer"></div>
-      <button class="btn" id="applyBtn">Применить</button>
-      <button class="btn" id="resetBtn">Сбросить</button>
+      <button class="btn" id="applyBtn">${T('common.apply')}</button>
+      <button class="btn" id="resetBtn">${T('common.reset')}</button>
     </div>
 
     <div class="table-card">
@@ -302,14 +337,14 @@ async function renderExpenses(root) {
     const html = `
       <table class="tbl">
         <thead><tr>
-          <th>Дата</th><th>Категория</th><th>Гос. №</th>
-          <th>Подразделение</th><th>Описание</th><th class="num">Сумма</th><th></th>
+          <th>${T('expenses.col_date')}</th><th>${T('expenses.col_cat')}</th><th>${T('expenses.col_plate')}</th>
+          <th>${T('expenses.col_division')}</th><th>${T('expenses.col_desc')}</th><th class="num">${T('expenses.col_sum')}</th><th></th>
         </tr></thead>
         <tbody>
           ${data.items.map(it => `
             <tr>
               <td>${fmtDate(it.data)}</td>
-              <td><span class="chip ${chipColor(it.kategoriya)}">${escape(it.kategoriya)}</span></td>
+              <td><span class="chip ${chipColor(it.kategoriya)}">${escape(catLabel(it.kategoriya))}</span></td>
               <td>${escape(it.gos_nomer || '—')}</td>
               <td>${escape(it.podrazdelenie_nazvanie || '—')}</td>
               <td>${escape(it.opisanie || '—')}</td>
@@ -320,22 +355,22 @@ async function renderExpenses(root) {
                    : ''}
               </td>
             </tr>
-          `).join('') || `<tr><td colspan="7" class="empty">Расходы не найдены</td></tr>`}
+          `).join('') || `<tr><td colspan="7" class="empty">${T('expenses.empty')}</td></tr>`}
         </tbody>
       </table>
       <div class="tbl-foot">
-        <span>Всего записей: ${data.total}</span>
-        <span>Сумма: <strong>${fmtMoney(data.total_summa)}</strong></span>
+        <span>${T('expenses.total', { n: data.total })}</span>
+        <span>${T('expenses.sum_total', { sum: fmtMoney(data.total_summa) })}</span>
       </div>
     `;
     $('#expensesTbl').innerHTML = html;
 
     $$('button[data-del]', $('#expensesTbl')).forEach(b => {
       b.onclick = async () => {
-        if (!confirm('Удалить этот расход?')) return;
+        if (!confirm(T('common.confirm_delete'))) return;
         try {
           await api('/api/finance/expenses/' + b.dataset.del, { method: 'DELETE' });
-          toast('Удалено', 'success');
+          toast(T('toast.deleted'), 'success');
           load();
         } catch (e) { toast(e.message, 'error'); }
       };
@@ -372,36 +407,36 @@ async function openExpenseModal(onSaved) {
   bg.className = 'modal-bg';
   bg.innerHTML = `
     <div class="modal">
-      <h3>Добавить расход</h3>
+      <h3>${T('expenses.modal_title')}</h3>
       <div class="form-grid">
-        <label class="full">Категория
+        <label class="full">${T('filter.category')}
           <select id="mKat">
-            <option value="topliv">Топливо</option>
-            <option value="strakhovka">Страховка</option>
-            <option value="nalog">Налог</option>
-            <option value="moyka">Мойка</option>
-            <option value="prochee">Прочее</option>
+            <option value="topliv">${T('cat.topliv')}</option>
+            <option value="strakhovka">${T('cat.strakhovka')}</option>
+            <option value="nalog">${T('cat.nalog')}</option>
+            <option value="moyka">${T('cat.moyka')}</option>
+            <option value="prochee">${T('cat.prochee')}</option>
           </select>
         </label>
-        <label>Дата
+        <label>${T('expenses.col_date')}
           <input type="date" id="mData" value="${new Date().toISOString().slice(0,10)}" />
         </label>
-        <label>Сумма, ₽
+        <label>${T('expenses.col_sum')}, ₽
           <input type="number" id="mSum" min="1" step="100" />
         </label>
-        <label class="full">Подразделение
+        <label class="full">${T('expenses.col_division')}
           <select id="mPd">
-            <option value="">— не указано —</option>
+            <option value="">${T('expenses.no_division')}</option>
             ${pd.map(p => `<option value="${p.id}">${escape(p.nazvanie)}</option>`).join('')}
           </select>
         </label>
-        <label class="full">Описание
+        <label class="full">${T('expenses.col_desc')}
           <textarea id="mDesc" rows="2"></textarea>
         </label>
       </div>
       <div class="modal-actions">
-        <button class="btn" id="mCancel">Отмена</button>
-        <button class="btn dark" id="mSave">Сохранить</button>
+        <button class="btn" id="mCancel">${T('common.cancel')}</button>
+        <button class="btn dark" id="mSave">${T('common.save')}</button>
       </div>
     </div>
   `;
@@ -416,10 +451,10 @@ async function openExpenseModal(onSaved) {
       podrazdelenie_id: $('#mPd', bg).value ? +$('#mPd', bg).value : null,
       opisanie:         $('#mDesc', bg).value || null,
     };
-    if (!body.summa || !body.data) return toast('Заполните дату и сумму', 'error');
+    if (!body.summa || !body.data) return toast(T('toast.fill_required'), 'error');
     try {
       await api('/api/finance/expenses', { method: 'POST', body: JSON.stringify(body) });
-      toast('Расход добавлен', 'success');
+      toast(T('toast.expense_added'), 'success');
       bg.remove();
       onSaved && onSaved();
     } catch (e) { toast(e.message, 'error'); }
@@ -433,30 +468,30 @@ async function renderBudgets(root) {
   root.innerHTML = `
     <div class="section__head">
       <div>
-        <h2 class="section__title">Бюджеты — план / факт</h2>
-        <div class="section__subtitle">Сравнение плановых и фактических расходов</div>
+        <h2 class="section__title">${T('budgets.title')}</h2>
+        <div class="section__subtitle">${T('budgets.subtitle')}</div>
       </div>
     </div>
 
     <div class="filters">
-      <label>Год <input type="number" id="bGod" value="${new Date().getFullYear()}" min="2020" max="2100" /></label>
-      <label>Месяц
+      <label>${T('filter.year')} <input type="number" id="bGod" value="${new Date().getFullYear()}" min="2020" max="2100" /></label>
+      <label>${T('filter.month')}
         <select id="bMes">
-          <option value="">Все</option>
+          <option value="">${T('common.all')}</option>
           ${[...Array(12).keys()].map(i => `<option value="${i+1}">${i+1}</option>`).join('')}
         </select>
       </label>
-      <label>Категория
+      <label>${T('filter.category')}
         <select id="bKat">
-          <option value="">Все</option>
-          <option value="remont">Ремонт</option>
-          <option value="zapchasti">Запчасти</option>
-          <option value="topliv">Топливо</option>
-          <option value="prochee">Прочее</option>
+          <option value="">${T('common.all')}</option>
+          <option value="remont">${T('cat.remont')}</option>
+          <option value="zapchasti">${T('cat.zapchasti')}</option>
+          <option value="topliv">${T('cat.topliv')}</option>
+          <option value="prochee">${T('cat.prochee')}</option>
         </select>
       </label>
       <div class="spacer"></div>
-      <button class="btn" id="bApply">Применить</button>
+      <button class="btn" id="bApply">${T('common.apply')}</button>
     </div>
 
     <div class="cards-grid" id="bTotals"></div>
@@ -475,31 +510,31 @@ async function renderBudgets(root) {
     const data = await api('/api/finance/budgets/plan-fakt?' + params);
 
     $('#bTotals').innerHTML = `
-      <div class="kpi-card"><div class="kpi-card__label">План</div>
+      <div class="kpi-card"><div class="kpi-card__label">${T('budgets.kpi_plan')}</div>
         <div class="kpi-card__value">${fmtMoney(data.totals.plan)}</div></div>
-      <div class="kpi-card"><div class="kpi-card__label">Факт</div>
+      <div class="kpi-card"><div class="kpi-card__label">${T('budgets.kpi_fakt')}</div>
         <div class="kpi-card__value">${fmtMoney(data.totals.fakt)}</div></div>
-      <div class="kpi-card"><div class="kpi-card__label">Отклонение</div>
+      <div class="kpi-card"><div class="kpi-card__label">${T('budgets.kpi_dev')}</div>
         <div class="kpi-card__value" style="color: ${data.totals.otklonenie < 0 ? 'var(--c-bad)' : 'var(--c-good)'}">
           ${data.totals.otklonenie < 0 ? '−' : '+'}${fmtMoney(Math.abs(data.totals.otklonenie))}
         </div></div>
-      <div class="kpi-card"><div class="kpi-card__label">% исполнения</div>
+      <div class="kpi-card"><div class="kpi-card__label">${T('budgets.kpi_pct')}</div>
         <div class="kpi-card__value">${data.totals.protsent}%</div></div>
     `;
 
     $('#bTbl').innerHTML = `
       <table class="tbl">
         <thead><tr>
-          <th>Подразделение</th><th>Период</th><th>Категория</th>
-          <th class="num">План</th><th class="num">Факт</th>
-          <th class="num">Отклонение</th><th class="num">% исп.</th>
+          <th>${T('budgets.col_division')}</th><th>${T('budgets.col_period')}</th><th>${T('budgets.col_cat')}</th>
+          <th class="num">${T('budgets.col_plan')}</th><th class="num">${T('budgets.col_fakt')}</th>
+          <th class="num">${T('budgets.col_dev')}</th><th class="num">${T('budgets.col_pct')}</th>
         </tr></thead>
         <tbody>
           ${data.items.map(it => `
             <tr>
               <td>${escape(it.podrazdelenie_nazvanie)}</td>
               <td>${it.mesyats}/${it.god}</td>
-              <td><span class="chip ${chipColor(it.kategoriya)}">${escape(it.kategoriya)}</span></td>
+              <td><span class="chip ${chipColor(it.kategoriya)}">${escape(catLabel(it.kategoriya))}</span></td>
               <td class="num">${fmtMoney(it.plan_summa)}</td>
               <td class="num">${fmtMoney(it.fakt_summa)}</td>
               <td class="num" style="color: ${+it.otklonenie < 0 ? 'var(--c-bad)' : 'var(--c-good)'}">
@@ -511,7 +546,7 @@ async function renderBudgets(root) {
                 </span>
               </td>
             </tr>
-          `).join('') || `<tr><td colspan="7" class="empty">Бюджеты не найдены</td></tr>`}
+          `).join('') || `<tr><td colspan="7" class="empty">${T('budgets.empty')}</td></tr>`}
         </tbody>
       </table>
     `;
@@ -528,22 +563,22 @@ async function renderTco(root) {
   root.innerHTML = `
     <div class="section__head">
       <div>
-        <h2 class="section__title">Парк — TCO</h2>
-        <div class="section__subtitle">Стоимость владения по каждому транспортному средству</div>
+        <h2 class="section__title">${T('tco.title')}</h2>
+        <div class="section__subtitle">${T('tco.subtitle')}</div>
       </div>
     </div>
 
     <div class="filters">
-      <label>Сортировка
+      <label>${T('filter.sort')}
         <select id="tSort">
-          <option value="tco_desc">TCO по убыванию</option>
-          <option value="tco_asc">TCO по возрастанию</option>
-          <option value="remontov">Кол-во ремонтов</option>
-          <option value="gos_nomer">Гос. номер</option>
+          <option value="tco_desc">${T('tco.sort_tco_desc')}</option>
+          <option value="tco_asc">${T('tco.sort_tco_asc')}</option>
+          <option value="remontov">${T('tco.sort_repairs')}</option>
+          <option value="gos_nomer">${T('tco.sort_plate')}</option>
         </select>
       </label>
       <div class="spacer"></div>
-      <button class="btn" id="tApply">Применить</button>
+      <button class="btn" id="tApply">${T('common.apply')}</button>
     </div>
 
     <div id="tDetail"></div>
@@ -558,10 +593,10 @@ async function renderTco(root) {
     $('#tList').innerHTML = `
       <table class="tbl">
         <thead><tr>
-          <th>Гос. №</th><th>Марка / модель</th><th>Подразделение</th>
-          <th class="num">Ремонтов</th>
-          <th class="num">Работы</th><th class="num">Запчасти</th>
-          <th class="num">Прочее</th><th class="num">TCO итого</th>
+          <th>${T('tco.col_plate')}</th><th>${T('tco.col_model')}</th><th>${T('tco.col_division')}</th>
+          <th class="num">${T('tco.col_repairs')}</th>
+          <th class="num">${T('tco.col_works')}</th><th class="num">${T('tco.col_parts')}</th>
+          <th class="num">${T('tco.col_other')}</th><th class="num">${T('tco.col_tco')}</th>
         </tr></thead>
         <tbody>
           ${data.items.map(t => `
@@ -575,12 +610,12 @@ async function renderTco(root) {
               <td class="num">${fmtMoney(t.itogo_prochee)}</td>
               <td class="num"><strong>${fmtMoney(t.tco_obshchee)}</strong></td>
             </tr>
-          `).join('') || `<tr><td colspan="8" class="empty">Нет данных</td></tr>`}
+          `).join('') || `<tr><td colspan="8" class="empty">${T('common.no_data')}</td></tr>`}
         </tbody>
       </table>
       <div class="tbl-foot">
-        <span>Машин: ${data.items.length}</span>
-        <span>Итого TCO: <strong>${fmtMoney(data.totals.tco)}</strong></span>
+        <span>${T('tco.cars_count', { n: data.items.length })}</span>
+        <span>${T('tco.tco_total', { sum: fmtMoney(data.totals.tco) })}</span>
       </div>
     `;
     $$('tr[data-ts]').forEach(tr => {
@@ -592,38 +627,38 @@ async function renderTco(root) {
     const d = await api('/api/finance/reports/tco/' + tsId);
     $('#tDetail').innerHTML = `
       <div class="table-card" style="margin-bottom: 14px;">
-        <h3>📋 ${escape(d.summary.gos_nomer)} — ${escape(d.summary.marka_nazvanie)} ${escape(d.summary.model_nazvanie)}</h3>
+        <h3>${escape(d.summary.gos_nomer)} — ${escape(d.summary.marka_nazvanie)} ${escape(d.summary.model_nazvanie)}</h3>
         <div class="dtl-grid">
           <div>
-            <div class="kpi-card__label">Подразделение</div>
+            <div class="kpi-card__label">${T('tco.detail_division')}</div>
             <div>${escape(d.summary.podrazdelenie_nazvanie || '—')}</div>
           </div>
           <div>
-            <div class="kpi-card__label">Заявок / ремонтов</div>
+            <div class="kpi-card__label">${T('tco.detail_orders')}</div>
             <div>${d.summary.kolvo_zayavok} / ${d.summary.kolvo_remontov}</div>
           </div>
           <div>
-            <div class="kpi-card__label">TCO итого</div>
+            <div class="kpi-card__label">${T('tco.detail_total')}</div>
             <div><strong>${fmtMoney(d.summary.tco_obshchee)}</strong></div>
           </div>
           <div>
-            <div class="kpi-card__label">В т.ч. работы / запчасти / прочее</div>
+            <div class="kpi-card__label">${T('tco.detail_breakdown')}</div>
             <div>${fmtMoney(d.summary.itogo_rabot)} / ${fmtMoney(d.summary.itogo_zapchastey)} / ${fmtMoney(d.summary.itogo_prochee)}</div>
           </div>
         </div>
-        <h3 style="margin-top:16px">История ремонтов</h3>
+        <h3 style="margin-top:16px">${T('tco.history')}</h3>
         <table class="tbl">
-          <thead><tr><th>Тип</th><th>Начало</th><th>Окончание</th><th>Механик</th><th class="num">Итого</th></tr></thead>
+          <thead><tr><th>${T('tco.history_type')}</th><th>${T('tco.history_start')}</th><th>${T('tco.history_end')}</th><th>${T('tco.history_mech')}</th><th class="num">${T('tco.history_total')}</th></tr></thead>
           <tbody>
             ${d.remonty.map(r => `
               <tr>
-                <td>${escape(r.tip_remonta)} <span class="chip">${escape(r.kategoriya)}</span></td>
+                <td>${escape(r.tip_remonta)} <span class="chip">${escape(catLabel(r.kategoriya))}</span></td>
                 <td>${fmtDate(r.data_nachala)}</td>
                 <td>${fmtDate(r.data_okonchaniya)}</td>
                 <td>${escape(r.mekhanik || '—')}</td>
                 <td class="num"><strong>${fmtMoney(r.itogo)}</strong></td>
               </tr>
-            `).join('') || `<tr><td colspan="5" class="empty">Ремонтов нет</td></tr>`}
+            `).join('') || `<tr><td colspan="5" class="empty">${T('tco.history_empty')}</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -642,8 +677,8 @@ async function renderReceipts(root) {
   root.innerHTML = `
     <div class="section__head">
       <div>
-        <h2 class="section__title">Приходные накладные</h2>
-        <div class="section__subtitle">Закупки запчастей у поставщиков</div>
+        <h2 class="section__title">${T('receipts.title')}</h2>
+        <div class="section__subtitle">${T('receipts.subtitle')}</div>
       </div>
     </div>
 
@@ -657,10 +692,10 @@ async function renderReceipts(root) {
   $('#rList').innerHTML = `
     <table class="tbl">
       <thead><tr>
-        <th>Дата</th><th>№ накладной</th><th>Поставщик</th>
-        <th>Создал</th>
-        <th class="num">Позиций</th><th class="num">Единиц</th>
-        <th class="num">Сумма</th>
+        <th>${T('receipts.col_date')}</th><th>${T('receipts.col_num')}</th><th>${T('receipts.col_supplier')}</th>
+        <th>${T('receipts.col_creator')}</th>
+        <th class="num">${T('receipts.col_pos')}</th><th class="num">${T('receipts.col_units')}</th>
+        <th class="num">${T('receipts.col_sum')}</th>
       </tr></thead>
       <tbody>
         ${data.map(r => `
@@ -673,7 +708,7 @@ async function renderReceipts(root) {
             <td class="num">${r.itogo_edinic}</td>
             <td class="num"><strong>${fmtMoney(r.summa_obshaya)}</strong></td>
           </tr>
-        `).join('') || `<tr><td colspan="7" class="empty">Накладных нет</td></tr>`}
+        `).join('') || `<tr><td colspan="7" class="empty">${T('receipts.empty')}</td></tr>`}
       </tbody>
     </table>
   `;
@@ -683,18 +718,18 @@ async function renderReceipts(root) {
       const d = await api('/api/finance/parts/receipts/' + tr.dataset.id);
       $('#rDetail').innerHTML = `
         <div class="table-card" style="margin-top: 14px;">
-          <h3>Накладная № ${escape(d.nomer_nakl || d.id)}</h3>
+          <h3>${T('receipts.detail_title', { n: escape(d.nomer_nakl || d.id) })}</h3>
           <div class="dtl-grid">
-            <div><div class="kpi-card__label">Поставщик</div><div>${escape(d.postavshik_nazvanie)}</div></div>
-            <div><div class="kpi-card__label">Дата</div><div>${fmtDate(d.data_prikhoda)}</div></div>
-            <div><div class="kpi-card__label">Создал</div><div>${escape(d.sozdatel_fio || '—')}</div></div>
-            <div><div class="kpi-card__label">Сумма</div><div><strong>${fmtMoney(d.summa_obshaya)}</strong></div></div>
+            <div><div class="kpi-card__label">${T('receipts.detail_sup')}</div><div>${escape(d.postavshik_nazvanie)}</div></div>
+            <div><div class="kpi-card__label">${T('receipts.detail_date')}</div><div>${fmtDate(d.data_prikhoda)}</div></div>
+            <div><div class="kpi-card__label">${T('receipts.detail_creator')}</div><div>${escape(d.sozdatel_fio || '—')}</div></div>
+            <div><div class="kpi-card__label">${T('receipts.detail_sum')}</div><div><strong>${fmtMoney(d.summa_obshaya)}</strong></div></div>
           </div>
           ${d.kommentariy ? `<div style="color:var(--c-muted);font-style:italic;margin-bottom:10px">${escape(d.kommentariy)}</div>` : ''}
           <table class="tbl">
             <thead><tr>
-              <th>Запчасть</th><th>Артикул</th>
-              <th class="num">Кол-во</th><th class="num">Цена</th><th class="num">Итого</th>
+              <th>${T('receipts.pos_part')}</th><th>${T('receipts.pos_sku')}</th>
+              <th class="num">${T('receipts.pos_qty')}</th><th class="num">${T('receipts.pos_price')}</th><th class="num">${T('receipts.pos_total')}</th>
             </tr></thead>
             <tbody>
               ${d.pozitsii.map(p => `
@@ -722,8 +757,8 @@ async function renderAudit(root) {
   root.innerHTML = `
     <div class="section__head">
       <div>
-        <h2 class="section__title">Журнал операций</h2>
-        <div class="section__subtitle">Все финансовые действия пользователей</div>
+        <h2 class="section__title">${T('audit.title')}</h2>
+        <div class="section__subtitle">${T('audit.subtitle')}</div>
       </div>
     </div>
     <div class="table-card">
@@ -735,9 +770,9 @@ async function renderAudit(root) {
   $('#aTbl').innerHTML = `
     <table class="tbl">
       <thead><tr>
-        <th>Дата / время</th><th>Сотрудник</th><th>Роль</th>
-        <th>Операция</th><th>Объект</th>
-        <th class="num">Сумма</th><th>Комментарий</th>
+        <th>${T('audit.col_when')}</th><th>${T('audit.col_user')}</th><th>${T('audit.col_role')}</th>
+        <th>${T('audit.col_op')}</th><th>${T('audit.col_obj')}</th>
+        <th class="num">${T('audit.col_sum')}</th><th>${T('audit.col_comment')}</th>
       </tr></thead>
       <tbody>
         ${data.items.map(it => `
@@ -750,11 +785,11 @@ async function renderAudit(root) {
             <td class="num">${it.summa ? fmtMoney(it.summa) : '—'}</td>
             <td>${escape(it.kommentariy || '')}</td>
           </tr>
-        `).join('') || `<tr><td colspan="7" class="empty">Журнал пуст</td></tr>`}
+        `).join('') || `<tr><td colspan="7" class="empty">${T('audit.empty')}</td></tr>`}
       </tbody>
     </table>
     <div class="tbl-foot">
-      <span>Записей: ${data.total}</span>
+      <span>${T('audit.records', { n: data.total })}</span>
     </div>
   `;
 }
@@ -764,5 +799,5 @@ loadUser()
   .then(navigate)
   .catch(e => {
     console.error(e);
-    $('#content').innerHTML = `<div class="empty">Ошибка авторизации: ${escape(e.message)}</div>`;
+    $('#content').innerHTML = `<div class="empty">${T('toast.auth_error')}: ${escape(e.message)}</div>`;
   });

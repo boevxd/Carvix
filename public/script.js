@@ -12,7 +12,7 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const token = localStorage.getItem('carvix_token');
   if (token && location.pathname === '/') {
     fetch(`${API}/me`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => (r.ok ? location.replace('/dashboard.html') : null))
+      .then((r) => (r.ok ? location.replace('/app.html') : null))
       .catch(() => {});
   }
 })();
@@ -144,7 +144,7 @@ forms.login.addEventListener('submit', async (e) => {
     localStorage.setItem('carvix_user', JSON.stringify(data.user));
 
     toast(`Добро пожаловать, ${data.user.fio.split(' ')[0]}!`, 'success');
-    setTimeout(() => location.assign('/dashboard.html'), 600);
+    setTimeout(() => location.assign('/app.html'), 600);
   } catch (err) {
     shake(forms.login);
     toast(err.message, 'error');
@@ -186,7 +186,7 @@ forms.register.addEventListener('submit', async (e) => {
     localStorage.setItem('carvix_user', JSON.stringify(data.user));
 
     toast('Аккаунт создан', 'success');
-    setTimeout(() => location.assign('/dashboard.html'), 600);
+    setTimeout(() => location.assign('/app.html'), 600);
   } catch (err) {
     shake(forms.register);
     toast(err.message, 'error');

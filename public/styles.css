@@ -3,7 +3,8 @@
    Палитра: белый / бежевый / серый
    =========================================== */
 
-:root {
+:root,
+[data-theme="light"] {
   /* Беж */
   --beige-50:  #FBF8F3;
   --beige-100: #F5EFE3;
@@ -39,6 +40,92 @@
 
   --ease: cubic-bezier(.22, 1, .36, 1);
   --ease-bounce: cubic-bezier(.34, 1.56, .64, 1);
+}
+
+/* ============== Тёмная тема (страница входа) ============== */
+[data-theme="dark"] {
+  --beige-50:  #1c1f26;
+  --beige-100: #20242c;
+  --beige-200: #2a2f3a;
+  --beige-300: #3a4150;
+  --beige-400: #5b6373;
+  --beige-500: #8c95a8;
+
+  --gray-50:  #20242c;
+  --gray-100: #262a34;
+  --gray-200: #313641;
+  --gray-300: #4a505d;
+  --gray-400: #8087a0;
+  --gray-500: #b0b6c4;
+  --gray-700: #dadde6;
+  --gray-900: #f1f2f6;
+
+  --white: #232730;
+
+  --bg: linear-gradient(135deg, #14161b 0%, #181b22 50%, #1c1f26 100%);
+  --accent: #f4ede0;
+  --accent-soft: #c8a16d;
+  --danger: #e07370;
+  --success: #4fbf85;
+
+  --shadow-card: 0 30px 80px -30px rgba(0, 0, 0, .55), 0 8px 24px -10px rgba(0, 0, 0, .35);
+  --shadow-soft: 0 8px 24px -12px rgba(0, 0, 0, .4);
+}
+
+html { color-scheme: light dark; }
+[data-theme="dark"] { color-scheme: dark; }
+
+/* ============== Тоглы темы/языка (плавающие, верх-право) ============== */
+.top-tools {
+  position: fixed;
+  top: 18px; right: 18px;
+  display: flex; gap: 8px;
+  z-index: 50;
+}
+.top-tools .sb-toggle {
+  width: 38px; height: 38px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--gray-500);
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+  transition: transform .2s, color .15s, background .15s;
+}
+.top-tools .sb-toggle svg { width: 18px; height: 18px; }
+.top-tools .sb-toggle:hover { color: var(--gray-900); transform: rotate(15deg); }
+[data-theme="light"] .top-tools .sb-toggle #iconSun  { display: none; }
+[data-theme="dark"]  .top-tools .sb-toggle #iconMoon { display: none; }
+
+.top-tools .lang-toggle {
+  display: inline-flex;
+  border: 1px solid var(--gray-200);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--white);
+  box-shadow: var(--shadow-soft);
+}
+.top-tools .lang-toggle__btn {
+  font: inherit;
+  font-size: 12px; font-weight: 700;
+  padding: 0 12px; height: 38px;
+  border: none;
+  background: transparent;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.top-tools .lang-toggle__btn:hover { color: var(--gray-900); }
+.top-tools .lang-toggle__btn.active {
+  background: var(--accent);
+  color: var(--beige-50);
+}
+
+/* ============== Инверсия логотипа на странице входа в тёмной теме ============== */
+[data-theme="dark"] .brand__logo img,
+[data-theme="dark"] .dash__logo img {
+  filter: invert(1) hue-rotate(180deg);
 }
 
 * { box-sizing: border-box; }
