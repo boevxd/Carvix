@@ -23,3 +23,8 @@ services:
         value: 7d
       - key: NODE_ENV
         value: production
+      # При первом старте если БД пустая — автоматически зальёт seed_data.sql
+      # (12 сотрудников, машины, заявки, бюджеты, отчёты).
+      # При повторных рестартах ничего не делает: проверяет, что sotrudnik пуст.
+      - key: SEED_DEMO
+        value: "true"
