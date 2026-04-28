@@ -194,7 +194,6 @@
       'toast.auth_error':      'Ошибка авторизации',
       'toast.imported':        'Импортировано {n} расходов',
       'toast.import_partial':  'Импортировано {n}, пропущено {skipped}',
-      'toast.email_sent':      'Отчёт отправлен на {to}',
       'toast.budget_saved':    'Бюджет сохранён ({created} создано, {updated} обновлено)',
       'toast.copied':          'Скопировано {n} записей',
       'toast.receipt_saved':   'Накладная принята',
@@ -204,16 +203,6 @@
       'export.menu':           'Экспорт',
       'export.excel':          'Excel',
       'export.pdf':            'PDF',
-      'export.email':          'Отправить на email',
-      'export.email_to':       'Email получателя',
-      'export.email_subject':  'Тема письма (опц.)',
-      'export.email_send':     'Отправить',
-      'export.email_smtp_off': '📥 Файл скачан',
-      'email.sent_title':      'Письмо отправлено',
-      'email.sent_body':       'Отчёт с вложением успешно отправлен на <b>{to}</b>.',
-      'email.demo_title':      '🧪 Демо-режим (тестовый SMTP)',
-      'email.demo_body':       'Сейчас включён сервис Ethereal Email (бесплатный test-SMTP от nodemailer). Письмо реально создано и доступно для просмотра по ссылке ниже — со всеми вложениями и форматированием. Чтобы письма реально доходили до ящиков, добавьте SMTP_HOST/USER/PASS в переменных окружения Render.',
-      'email.open_preview':    'Открыть письмо',
 
       // ---- Бюджеты: редактор ----
       'budgets.editor':           'Редактор бюджетов',
@@ -244,7 +233,6 @@
       'receipts.total':           'Итого',
       'receipts.empty_pos':       'Добавьте хотя бы одну позицию',
       'receipts.print_pdf':       'Печать (PDF M-15)',
-      'receipts.email_pdf':       'Отправить на email',
 
       // ---- Импорт CSV ----
       'csv.import':               'Импорт CSV',
@@ -450,7 +438,6 @@
       'toast.auth_error':      'Authorization error',
       'toast.imported':        'Imported {n} expenses',
       'toast.import_partial':  'Imported {n}, skipped {skipped}',
-      'toast.email_sent':      'Report sent to {to}',
       'toast.budget_saved':    'Budget saved ({created} created, {updated} updated)',
       'toast.copied':          'Copied {n} records',
       'toast.receipt_saved':   'Receipt accepted',
@@ -460,16 +447,6 @@
       'export.menu':           'Export',
       'export.excel':          'Excel',
       'export.pdf':            'PDF',
-      'export.email':          'Send by email',
-      'export.email_to':       'Recipient email',
-      'export.email_subject':  'Subject (optional)',
-      'export.email_send':     'Send',
-      'export.email_smtp_off': '📥 File downloaded',
-      'email.sent_title':      'Email sent',
-      'email.sent_body':       'The report with attachment has been successfully sent to <b>{to}</b>.',
-      'email.demo_title':      '🧪 Demo mode (test SMTP)',
-      'email.demo_body':       'The Ethereal Email service is currently active (a free test-SMTP by nodemailer). The email is real and you can preview it (with all attachments and formatting) via the link below. To deliver to real inboxes, set SMTP_HOST/USER/PASS in the server environment variables.',
-      'email.open_preview':    'Open email',
 
       // ---- Budgets editor ----
       'budgets.editor':           'Budget editor',
@@ -500,7 +477,6 @@
       'receipts.total':           'Total',
       'receipts.empty_pos':       'Add at least one item',
       'receipts.print_pdf':       'Print (PDF M-15)',
-      'receipts.email_pdf':       'Email PDF',
 
       // ---- CSV import ----
       'csv.import':               'CSV import',

@@ -12,92 +12,7 @@
   const TOKEN = localStorage.getItem('carvix_token');
 
   /* =========================================================
-     1. Универсальная отправка отчёта на email (модалка)
-     ========================================================= */
-  async function openEmailDialog(type, params, suggestedSubject) {
-    const bg = document.createElement('div');
-    bg.className = 'modal-bg';
-    bg.innerHTML = `
-      <div class="modal" style="width: 460px">
-        <h3>${T('export.email')}</h3>
-        <div class="form-grid">
-          <label class="full">${T('export.email_to')}
-            <input type="email" id="emailTo" placeholder="director@company.ru" />
-          </label>
-          <label class="full">${T('export.email_subject')}
-            <input type="text" id="emailSubj" value="${suggestedSubject || 'Carvix — отчёт'}" />
-          </label>
-        </div>
-        <div class="modal-actions">
-          <button class="btn" id="emCancel">${T('common.cancel')}</button>
-          <button class="btn dark" id="emSend">${T('export.email_send')}</button>
-        </div>
-      </div>`;
-    document.body.appendChild(bg);
-    bg.addEventListener('click', e => { if (e.target === bg) bg.remove(); });
-    bg.querySelector('#emCancel').onclick = () => bg.remove();
-    bg.querySelector('#emSend').onclick = async () => {
-      const to = bg.querySelector('#emailTo').value.trim();
-      const subject = bg.querySelector('#emailSubj').value.trim();
-      if (!to) return;
-      const btn = bg.querySelector('#emSend');
-      btn.disabled = true; btn.textContent = '...';
-      try {
-        const r = await window.api('/api/finance/exports/email', {
-          method: 'POST',
-          body: JSON.stringify({ to, subject, type, params }),
-        });
-        bg.remove();
-        if (r.previewUrl) {
-          // demo-режим (Ethereal) — показываем модалку с ссылкой на письмо
-          showEmailSentDialog(to, r.previewUrl);
-        } else {
-          window.toast(T('toast.email_sent', { to }), 'success');
-        }
-      } catch (e) {
-        window.toast(e.message, 'error');
-        btn.disabled = false; btn.textContent = T('export.email_send');
-      }
-    };
-    setTimeout(() => bg.querySelector('#emailTo').focus(), 30);
-  }
-
-  /**
-   * Модалка «письмо отправлено» с кнопкой просмотра (для demo/Ethereal-режима).
-   */
-  function showEmailSentDialog(to, previewUrl) {
-    const bg = document.createElement('div');
-    bg.className = 'modal-bg';
-    bg.innerHTML = `
-      <div class="modal" style="width: 520px">
-        <h3 style="display:flex; align-items:center; gap:10px">
-          <span style="font-size:28px">✅</span>
-          ${T('email.sent_title') || 'Письмо отправлено'}
-        </h3>
-        <p style="margin: 0 0 14px; color: var(--c-muted); font-size: 14px; line-height: 1.5">
-          ${T('email.sent_body', { to }) || `Отчёт успешно отправлен на <b>${to}</b>.`}
-        </p>
-        <div class="email-demo-banner">
-          <strong>${T('email.demo_title') || '🧪 Демо-режим'}</strong>
-          <p>${T('email.demo_body') ||
-            'Сейчас включён тестовый SMTP (Ethereal Email) — реальные письма не доходят до настоящих ящиков, но вы можете посмотреть отправленное письмо со всеми вложениями по ссылке ниже. Чтобы письма приходили на реальные адреса, добавьте переменные SMTP_HOST/USER/PASS в окружении сервера.'}</p>
-        </div>
-        <div class="modal-actions" style="margin-top:16px">
-          <button class="btn" id="esClose">${T('common.cancel')}</button>
-          <a class="btn dark" id="esOpen" href="${previewUrl}" target="_blank" rel="noopener">
-            📨 ${T('email.open_preview') || 'Открыть письмо'}
-          </a>
-        </div>
-      </div>`;
-    document.body.appendChild(bg);
-    bg.addEventListener('click', e => { if (e.target === bg) bg.remove(); });
-    bg.querySelector('#esClose').onclick = () => bg.remove();
-    // также пишем в toast — когда модалка закроется, останется напоминание
-    window.toast(T('toast.email_sent', { to }), 'success');
-  }
-
-  /* =========================================================
-     2. Открыть экспорт в новой вкладке (Excel/PDF).
+     1. Открыть экспорт в новой вкладке (Excel/PDF).
      Токен прокидываем в query — иначе <a href> не пройдёт auth.
      ========================================================= */
   function buildExportUrl(type, params = {}) {
@@ -124,36 +39,21 @@
   }
 
   /* =========================================================
-     3. Виджет «Экспорт» (dropdown: Excel | Email)
+     2. Кнопка «Экспорт» (прямое скачивание).
         Возвращает HTMLElement — можно вставить в section__head.
      ========================================================= */
-  function buildExportButton(type, params, label, suggestedSubject) {
-    const wrap = document.createElement('div');
-    wrap.className = 'export-menu';
-    wrap.innerHTML = `
-      <button class="btn export-menu__btn">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="7 10 12 15 17 10"/>
-          <line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        ${label || T('export.menu')}
-      </button>
-      <div class="export-menu__list" hidden>
-        <a href="#" data-act="download">⬇ ${type.startsWith('excel') ? 'Excel' : 'PDF'}</a>
-        <a href="#" data-act="email">✉ ${T('export.email')}</a>
-      </div>`;
-    const btn = wrap.querySelector('.export-menu__btn');
-    const list = wrap.querySelector('.export-menu__list');
-    btn.onclick = (e) => { e.stopPropagation(); list.hidden = !list.hidden; };
-    document.addEventListener('click', () => { list.hidden = true; });
-    wrap.querySelector('[data-act="download"]').onclick = (e) => {
-      e.preventDefault(); openExportInNewTab(type, params); list.hidden = true;
-    };
-    wrap.querySelector('[data-act="email"]').onclick = (e) => {
-      e.preventDefault(); openEmailDialog(type, params, suggestedSubject); list.hidden = true;
-    };
-    return wrap;
+  function buildExportButton(type, params, label) {
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.innerHTML = `
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px; margin-right:6px">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      ${label || T('export.menu')}`;
+    btn.onclick = () => openExportInNewTab(type, params);
+    return btn;
   }
 
   /* =========================================================
@@ -255,7 +155,6 @@
         </div>
         <div class="modal-actions">
           <button class="btn" id="mCanc">${T('common.cancel')}</button>
-          <button class="btn" id="mEmail">✉ ${T('export.email')}</button>
           <button class="btn dark" id="mDownload">⬇ PDF</button>
         </div>
       </div>`;
@@ -269,10 +168,6 @@
     });
     bg.querySelector('#mDownload').onclick = () => {
       openExportInNewTab('pdf/monthly', collect()); bg.remove();
-    };
-    bg.querySelector('#mEmail').onclick = () => {
-      const p = collect(); bg.remove();
-      openEmailDialog('pdf/monthly', p, `Carvix — отчёт ${p.m}/${p.god}`);
     };
   }
 
@@ -305,18 +200,10 @@
     });
     const exportBtn = buildExportButton(
       'excel/expenses', null,
-      `📊 ${T('export.excel')}`,
-      'Carvix — реестр расходов'
+      `📊 ${T('export.excel')}`
     );
-    // подменим params на динамические
-    exportBtn.querySelector('[data-act="download"]').onclick = (e) => {
-      e.preventDefault();
-      openExportInNewTab('excel/expenses', getFilters());
-    };
-    exportBtn.querySelector('[data-act="email"]').onclick = (e) => {
-      e.preventDefault();
-      openEmailDialog('excel/expenses', getFilters(), 'Carvix — реестр расходов');
-    };
+    // подменим handler на динамический (читает текущие фильтры)
+    exportBtn.onclick = () => openExportInNewTab('excel/expenses', getFilters());
     actions.appendChild(exportBtn);
 
     // Inline-edit для записей prochiy_raskhod (источник = prochiy)
@@ -516,22 +403,12 @@
     // Кнопка экспорта Excel
     const expBtn = buildExportButton(
       'excel/budgets',
-      { god: document.querySelector('#bGod')?.value || new Date().getFullYear() },
-      `📊 ${T('budgets.export_excel')}`,
-      'Carvix — план/факт'
+      null,
+      `📊 ${T('budgets.export_excel')}`
     );
-    expBtn.querySelector('[data-act="download"]').onclick = (e) => {
-      e.preventDefault();
-      openExportInNewTab('excel/budgets', {
-        god: document.querySelector('#bGod')?.value || new Date().getFullYear(),
-      });
-    };
-    expBtn.querySelector('[data-act="email"]').onclick = (e) => {
-      e.preventDefault();
-      openEmailDialog('excel/budgets', {
-        god: document.querySelector('#bGod')?.value || new Date().getFullYear(),
-      }, 'Carvix — план/факт');
-    };
+    expBtn.onclick = () => openExportInNewTab('excel/budgets', {
+      god: document.querySelector('#bGod')?.value || new Date().getFullYear(),
+    });
     actions.appendChild(expBtn);
   }
 
@@ -710,7 +587,7 @@
   }
 
   /* =========================================================
-     10. ПРИХОДЫ — кнопка добавления, печать M-15, email
+     10. ПРИХОДЫ — кнопка добавления, печать M-15.
      ========================================================= */
   function decorateReceipts(head, content) {
     let actions = head.querySelector('.section__actions');

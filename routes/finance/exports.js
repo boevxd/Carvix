@@ -1,5 +1,5 @@
 /**
- * Carvix — экспорт в Excel и PDF + рассылка по e-mail.
+ * Carvix — экспорт в Excel и PDF.
  *
  *   GET  /api/finance/exports/excel/tco
  *   GET  /api/finance/exports/excel/expenses?from=&to=&kategoriya=
@@ -8,8 +8,6 @@
  *   GET  /api/finance/exports/pdf/receipt/:id
  *   GET  /api/finance/exports/pdf/monthly/:pdId/:god/:m
  *   GET  /api/finance/exports/pdf/writeoff/:remontId
- *
- *   POST /api/finance/exports/email   { to, subject?, type, params }
  *
  * Авторизация:
  *   Принимаем токен и из header Authorization: Bearer ..., и из query ?token=...
@@ -25,7 +23,6 @@ const express = require('express');
 const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 const path = require('path');
 const fs = require('fs');
 
@@ -116,8 +113,7 @@ function applyBorders(row) {
 }
 
 /* =========================================================
-   ГЕНЕРАТОРЫ — каждый возвращает { buffer, filename, contentType }
-   Генераторы НЕ зависят от res, поэтому переиспользуются и для email.
+   ГЕНЕРАТОРЫ — каждый возвращает { buffer, filename, contentType }.
    ========================================================= */
 async function genExcelTco() {
   const { rows } = await pool.pool.query(
@@ -809,104 +805,5 @@ router.get('/pdf/writeoff/:remontId', authForExport, requireFinanceRead, async (
     res.status(e.status || 500).json({ error: e.message }); }
 });
 
-/* =========================================================
-   POST /exports/email
-   ========================================================= */
-const TYPE_TO_GENERATOR = {
-  'excel/tco':      genExcelTco,
-  'excel/expenses': genExcelExpenses,
-  'excel/budgets':  genExcelBudgets,
-  'pdf/receipt':    genPdfReceipt,
-  'pdf/monthly':    genPdfMonthly,
-  'pdf/writeoff':   genPdfWriteoff,
-};
-
-/**
- * Кэш транспортов nodemailer.
- * - Если в env заданы SMTP_HOST/USER/PASS — используем боевой SMTP (Gmail, Yandex, ...).
- * - Иначе автоматически создаём аккаунт на Ethereal (https://ethereal.email/) —
- *   это бесплатный тестовый SMTP, специально предназначенный для разработки.
- *   Письма реально отправляются и доступны для просмотра по preview-URL,
- *   который мы отдадим клиенту. Идеально для демо.
- */
-let _transporterCache = null;
-let _transporterMode = null; // 'real' | 'ethereal'
-
-async function getMailTransport() {
-  if (_transporterCache) return { transporter: _transporterCache, mode: _transporterMode };
-
-  if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-    _transporterCache = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT, 10) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
-    _transporterMode = 'real';
-    console.log('[mail] using real SMTP:', process.env.SMTP_HOST);
-  } else {
-    // Ethereal: бесплатный test-SMTP. createTestAccount() создаёт временный ящик.
-    const acc = await nodemailer.createTestAccount();
-    _transporterCache = nodemailer.createTransport({
-      host: acc.smtp.host,
-      port: acc.smtp.port,
-      secure: acc.smtp.secure,
-      auth: { user: acc.user, pass: acc.pass },
-    });
-    _transporterMode = 'ethereal';
-    console.log('[mail] using Ethereal test SMTP, user =', acc.user);
-  }
-  return { transporter: _transporterCache, mode: _transporterMode };
-}
-
-router.post('/email', authForExport, requireFinanceRead, async (req, res) => {
-  try {
-    const { to, subject, type, params = {} } = req.body || {};
-    if (!to || !type) return res.status(400).json({ error: 'Поля to и type обязательны' });
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to))
-      return res.status(400).json({ error: 'Некорректный email' });
-
-    const gen = TYPE_TO_GENERATOR[type];
-    if (!gen) return res.status(400).json({ error: 'Неизвестный type: ' + type });
-
-    const { buffer, filename, contentType } = await gen(params);
-    const { transporter, mode } = await getMailTransport();
-
-    const fromAddr =
-      process.env.SMTP_FROM ||
-      (mode === 'real' ? `Carvix <${process.env.SMTP_USER}>` : 'Carvix <demo@carvix.test>');
-
-    const info = await transporter.sendMail({
-      from: fromAddr,
-      to,
-      subject: subject || `Carvix — ${filename}`,
-      text: 'К письму прикреплён отчёт, сформированный системой Carvix.',
-      html: `<p>К письму прикреплён отчёт <b>${filename}</b>, сформированный системой <b>Carvix</b>.</p>
-             <p>Отправлено пользователем: <i>${req.user.fio || req.user.login}</i></p>`,
-      attachments: [{ filename, content: buffer, contentType }],
-    });
-
-    await pool.execute(
-      `INSERT INTO finansoviy_log (sotrudnik_id, tip_operatsii, obyekt_tablitsa, kommentariy)
-       VALUES (?, 'OTPRAVLEN_OTCHET', 'finansoviy_log', ?)`,
-      [req.user.id, `Отчёт «${type}» отправлен на ${to}${mode === 'ethereal' ? ' (demo)' : ''}`]
-    );
-
-    // Для ethereal-режима nodemailer возвращает URL предпросмотра письма.
-    const previewUrl = mode === 'ethereal' ? nodemailer.getTestMessageUrl(info) : null;
-
-    res.json({
-      ok: true,
-      sent_to: to,
-      filename,
-      mode,
-      messageId: info.messageId,
-      previewUrl,
-    });
-  } catch (e) {
-    console.error('[exports/email] error:', e);
-    res.status(500).json({ error: 'Ошибка отправки: ' + e.message });
-  }
-});
-
 module.exports = router;
+
