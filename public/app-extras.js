@@ -43,25 +43,57 @@
       const btn = bg.querySelector('#emSend');
       btn.disabled = true; btn.textContent = '...';
       try {
-        await window.api('/api/finance/exports/email', {
+        const r = await window.api('/api/finance/exports/email', {
           method: 'POST',
           body: JSON.stringify({ to, subject, type, params }),
         });
-        window.toast(T('toast.email_sent', { to }), 'success');
         bg.remove();
-      } catch (e) {
-        // SMTP не настроен → молча fallback-аем на скачивание
-        if (e.status === 503) {
-          openExportInNewTab(type, params);
-          window.toast(T('export.email_smtp_off'), 'success');
-          bg.remove();
+        if (r.previewUrl) {
+          // demo-режим (Ethereal) — показываем модалку с ссылкой на письмо
+          showEmailSentDialog(to, r.previewUrl);
         } else {
-          window.toast(e.message, 'error');
-          btn.disabled = false; btn.textContent = T('export.email_send');
+          window.toast(T('toast.email_sent', { to }), 'success');
         }
+      } catch (e) {
+        window.toast(e.message, 'error');
+        btn.disabled = false; btn.textContent = T('export.email_send');
       }
     };
     setTimeout(() => bg.querySelector('#emailTo').focus(), 30);
+  }
+
+  /**
+   * Модалка «письмо отправлено» с кнопкой просмотра (для demo/Ethereal-режима).
+   */
+  function showEmailSentDialog(to, previewUrl) {
+    const bg = document.createElement('div');
+    bg.className = 'modal-bg';
+    bg.innerHTML = `
+      <div class="modal" style="width: 520px">
+        <h3 style="display:flex; align-items:center; gap:10px">
+          <span style="font-size:28px">✅</span>
+          ${T('email.sent_title') || 'Письмо отправлено'}
+        </h3>
+        <p style="margin: 0 0 14px; color: var(--c-muted); font-size: 14px; line-height: 1.5">
+          ${T('email.sent_body', { to }) || `Отчёт успешно отправлен на <b>${to}</b>.`}
+        </p>
+        <div class="email-demo-banner">
+          <strong>${T('email.demo_title') || '🧪 Демо-режим'}</strong>
+          <p>${T('email.demo_body') ||
+            'Сейчас включён тестовый SMTP (Ethereal Email) — реальные письма не доходят до настоящих ящиков, но вы можете посмотреть отправленное письмо со всеми вложениями по ссылке ниже. Чтобы письма приходили на реальные адреса, добавьте переменные SMTP_HOST/USER/PASS в окружении сервера.'}</p>
+        </div>
+        <div class="modal-actions" style="margin-top:16px">
+          <button class="btn" id="esClose">${T('common.cancel')}</button>
+          <a class="btn dark" id="esOpen" href="${previewUrl}" target="_blank" rel="noopener">
+            📨 ${T('email.open_preview') || 'Открыть письмо'}
+          </a>
+        </div>
+      </div>`;
+    document.body.appendChild(bg);
+    bg.addEventListener('click', e => { if (e.target === bg) bg.remove(); });
+    bg.querySelector('#esClose').onclick = () => bg.remove();
+    // также пишем в toast — когда модалка закроется, останется напоминание
+    window.toast(T('toast.email_sent', { to }), 'success');
   }
 
   /* =========================================================

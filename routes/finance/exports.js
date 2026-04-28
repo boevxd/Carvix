@@ -821,6 +821,44 @@ const TYPE_TO_GENERATOR = {
   'pdf/writeoff':   genPdfWriteoff,
 };
 
+/**
+ * Кэш транспортов nodemailer.
+ * - Если в env заданы SMTP_HOST/USER/PASS — используем боевой SMTP (Gmail, Yandex, ...).
+ * - Иначе автоматически создаём аккаунт на Ethereal (https://ethereal.email/) —
+ *   это бесплатный тестовый SMTP, специально предназначенный для разработки.
+ *   Письма реально отправляются и доступны для просмотра по preview-URL,
+ *   который мы отдадим клиенту. Идеально для демо.
+ */
+let _transporterCache = null;
+let _transporterMode = null; // 'real' | 'ethereal'
+
+async function getMailTransport() {
+  if (_transporterCache) return { transporter: _transporterCache, mode: _transporterMode };
+
+  if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+    _transporterCache = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT, 10) || 587,
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+    _transporterMode = 'real';
+    console.log('[mail] using real SMTP:', process.env.SMTP_HOST);
+  } else {
+    // Ethereal: бесплатный test-SMTP. createTestAccount() создаёт временный ящик.
+    const acc = await nodemailer.createTestAccount();
+    _transporterCache = nodemailer.createTransport({
+      host: acc.smtp.host,
+      port: acc.smtp.port,
+      secure: acc.smtp.secure,
+      auth: { user: acc.user, pass: acc.pass },
+    });
+    _transporterMode = 'ethereal';
+    console.log('[mail] using Ethereal test SMTP, user =', acc.user);
+  }
+  return { transporter: _transporterCache, mode: _transporterMode };
+}
+
 router.post('/email', authForExport, requireFinanceRead, async (req, res) => {
   try {
     const { to, subject, type, params = {} } = req.body || {};
@@ -831,24 +869,14 @@ router.post('/email', authForExport, requireFinanceRead, async (req, res) => {
     const gen = TYPE_TO_GENERATOR[type];
     if (!gen) return res.status(400).json({ error: 'Неизвестный type: ' + type });
 
-    if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
-      return res.status(503).json({
-        error: 'SMTP не настроен. Заполните SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM в .env',
-      });
-    }
-
     const { buffer, filename, contentType } = await gen(params);
+    const { transporter, mode } = await getMailTransport();
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT, 10) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
+    const fromAddr =
+      process.env.SMTP_FROM ||
+      (mode === 'real' ? `Carvix <${process.env.SMTP_USER}>` : 'Carvix <demo@carvix.test>');
 
-    const fromAddr = process.env.SMTP_FROM || `Carvix <${process.env.SMTP_USER}>`;
-
-    await transporter.sendMail({
+    const info = await transporter.sendMail({
       from: fromAddr,
       to,
       subject: subject || `Carvix — ${filename}`,
@@ -861,10 +889,20 @@ router.post('/email', authForExport, requireFinanceRead, async (req, res) => {
     await pool.execute(
       `INSERT INTO finansoviy_log (sotrudnik_id, tip_operatsii, obyekt_tablitsa, kommentariy)
        VALUES (?, 'OTPRAVLEN_OTCHET', 'finansoviy_log', ?)`,
-      [req.user.id, `Отчёт «${type}» отправлен на ${to}`]
+      [req.user.id, `Отчёт «${type}» отправлен на ${to}${mode === 'ethereal' ? ' (demo)' : ''}`]
     );
 
-    res.json({ ok: true, sent_to: to, filename });
+    // Для ethereal-режима nodemailer возвращает URL предпросмотра письма.
+    const previewUrl = mode === 'ethereal' ? nodemailer.getTestMessageUrl(info) : null;
+
+    res.json({
+      ok: true,
+      sent_to: to,
+      filename,
+      mode,
+      messageId: info.messageId,
+      previewUrl,
+    });
   } catch (e) {
     console.error('[exports/email] error:', e);
     res.status(500).json({ error: 'Ошибка отправки: ' + e.message });

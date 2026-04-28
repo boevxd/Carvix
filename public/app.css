@@ -541,3 +541,21 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 [data-theme="dark"] .be-grid .be-cat,
 [data-theme="dark"] .be-grid .be-sum { background: rgba(255,255,255,.04); }
 [data-theme="dark"] .rc-grid thead th { background: rgba(255,255,255,.04); }
+
+/* --- Demo-баннер «письмо отправлено» --- */
+.email-demo-banner {
+  background: linear-gradient(135deg, rgba(184,148,96,.15), rgba(184,148,96,.05));
+  border: 1px solid rgba(184,148,96,.35);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--c-text);
+}
+.email-demo-banner strong { display: block; margin-bottom: 6px; font-size: 13px; }
+.email-demo-banner p { margin: 0; color: var(--c-muted); font-size: 12px; }
+
+[data-theme="dark"] .email-demo-banner {
+  background: linear-gradient(135deg, rgba(184,148,96,.2), rgba(184,148,96,.05));
+  border-color: rgba(184,148,96,.4);
+}
