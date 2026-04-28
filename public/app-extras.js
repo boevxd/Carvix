@@ -50,10 +50,10 @@
         window.toast(T('toast.email_sent', { to }), 'success');
         bg.remove();
       } catch (e) {
-        // SMTP не настроен → fallback на скачивание
+        // SMTP не настроен → молча fallback-аем на скачивание
         if (e.status === 503) {
-          window.toast(T('export.email_smtp_off'), '');
           openExportInNewTab(type, params);
+          window.toast(T('export.email_smtp_off'), 'success');
           bg.remove();
         } else {
           window.toast(e.message, 'error');
@@ -825,6 +825,16 @@
       tr.querySelector('.rc-del').onclick = () => { tr.remove(); recalcTotal(); };
       tr.querySelector('.rc-q').oninput = () => { recalcRow(tr); recalcTotal(); };
       tr.querySelector('.rc-p').oninput = () => { recalcRow(tr); recalcTotal(); };
+      // Автоподстановка последней цены при выборе запчасти
+      tr.querySelector('.rc-z').onchange = (e) => {
+        const id = +e.target.value;
+        const z = zapchasti.find(x => x.id === id);
+        const priceInput = tr.querySelector('.rc-p');
+        if (z && z.posledniaya_tsena && !priceInput.value) {
+          priceInput.value = Number(z.posledniaya_tsena).toFixed(2);
+          recalcRow(tr); recalcTotal();
+        }
+      };
     }
     addRow();
     bg.querySelector('#rcAddPos').onclick = addRow;

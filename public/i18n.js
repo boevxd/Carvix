@@ -208,7 +208,7 @@
       'export.email_to':       'Email получателя',
       'export.email_subject':  'Тема письма (опц.)',
       'export.email_send':     'Отправить',
-      'export.email_smtp_off': 'SMTP не настроен. Файл будет скачан вместо отправки.',
+      'export.email_smtp_off': '📥 Файл скачан',
 
       // ---- Бюджеты: редактор ----
       'budgets.editor':           'Редактор бюджетов',
@@ -459,7 +459,7 @@
       'export.email_to':       'Recipient email',
       'export.email_subject':  'Subject (optional)',
       'export.email_send':     'Send',
-      'export.email_smtp_off': 'SMTP not configured. File will be downloaded instead.',
+      'export.email_smtp_off': '📥 File downloaded',
 
       // ---- Budgets editor ----
       'budgets.editor':           'Budget editor',

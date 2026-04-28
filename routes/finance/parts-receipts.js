@@ -22,7 +22,8 @@ const router = express.Router();
 router.get('/dictionary/zapchasti', authRequired, requireFinanceRead, async (req, res) => {
   try {
     const r = await pool.pool.query(
-      `SELECT id, naimenovanie, artikul, edinitsa_izmereniya AS ed_izm,
+      `SELECT id, naimenovanie, artikul, kategoriya,
+              tsena AS posledniaya_tsena,
               ostatok_na_sklade
          FROM zapchast
         ORDER BY naimenovanie`
