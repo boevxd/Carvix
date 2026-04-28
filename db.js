@@ -12,10 +12,12 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-const ssl =
-  process.env.DATABASE_URL && process.env.NODE_ENV === 'production'
-    ? { rejectUnauthorized: false }
-    : false;
+// SSL: при подключении через DATABASE_URL (Render, Heroku, Neon, Supabase…)
+// почти всегда требуется SSL. Локальный PG (DB_HOST=127.0.0.1) — без SSL.
+const useSSL =
+  !!process.env.DATABASE_URL || process.env.PGSSL === 'true';
+
+const ssl = useSSL ? { rejectUnauthorized: false } : false;
 
 const pgPool = process.env.DATABASE_URL
   ? new Pool({ connectionString: process.env.DATABASE_URL, ssl })
