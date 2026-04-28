@@ -7,6 +7,9 @@
     <img alt="Express" src="https://img.shields.io/badge/Express-4.x-000000?logo=express&logoColor=white" />
     <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-14%2B-4169E1?logo=postgresql&logoColor=white" />
     <img alt="JWT" src="https://img.shields.io/badge/Auth-JWT-000000?logo=jsonwebtokens" />
+    <img alt="Tests" src="https://img.shields.io/badge/Tests-Jest%20%E2%9C%94-99425b?logo=jest&logoColor=white" />
+    <img alt="Coverage" src="https://img.shields.io/badge/Coverage-82%25-brightgreen" />
+    <img alt="CI" src="https://github.com/boevxd/Carvix/actions/workflows/ci.yml/badge.svg" />
     <img alt="Render" src="https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white" />
     <img alt="License" src="https://img.shields.io/badge/license-MIT-1c1b17" />
   </p>
@@ -171,6 +174,57 @@ curl -X POST http://localhost:3000/api/auth/login \
   }
 }
 ```
+
+## Тесты и контроль качества
+
+Проект покрыт автоматическими тестами на **Jest + supertest** — 119 тестов, **82 % покрытия** строк бэкенда.
+
+### Запуск
+
+```bash
+npm test                  # все тесты
+npm run test:coverage     # с HTML-отчётом покрытия (coverage/lcov-report/index.html)
+npm run test:unit         # только unit (middleware)
+npm run test:integration  # интеграционные (HTTP + БД-моки)
+npm run test:business     # бизнес-логика (план/факт, CSV, JWT)
+npm run test:ci           # как на CI: --runInBand --ci + coverage
+```
+
+### Что покрыто
+
+| Каталог | Файлов | Тестов | Что проверяется |
+|---|---:|---:|---|
+| `__tests__/unit/` | 2 | 18 | JWT-middleware (5 веток), RBAC (Директор/Аналитик/Гл. механик/Пользователь × read/write) |
+| `__tests__/integration/auth` | 1 | 14 | login/register/me/roles/podrazdeleniya — все 400/401/409/200-сценарии |
+| `__tests__/integration/expenses` | 1 | 22 | CRUD расходов + RBAC + CSV-импорт + audit-log |
+| `__tests__/integration/budgets` | 1 | 20 | CRUD бюджетов + bulk + copy-from-prev-year + плана/факт + RBAC |
+| `__tests__/integration/parts-receipts` | 1 | 15 | накладные на запчасти, склад в транзакции, реверс при удалении |
+| `__tests__/integration/reports` | 1 | 8 | TCO-список, TCO-детальный, дашборд (KPI, динамика 12 мес.) |
+| `__tests__/integration/audit` | 1 | 5 | журнал операций, фильтры, RBAC, пагинация |
+| `__tests__/business-logic/` | 3 | 17 | план/факт-формула, CSV-парсер (Excel-RU, кириллица, числа с запятой), JWT-tampering |
+| **Итого** | **11** | **119** | — |
+
+### Архитектура тестов
+
+* **`__tests__/helpers/mockDb.js`** — заглушка модуля `db.js`. Записывает все вызовы `pool.execute / pool.pool.query / transaction`, отдаёт настроенные ответы по regex-паттернам SQL-запроса. Это даёт настоящие интеграционные тесты эндпоинтов **без поднятия PostgreSQL**.
+* **`__tests__/helpers/auth.js`** — генератор JWT-токенов для четырёх ролей и негативных кейсов (просроченный, чужой секрет, tampered).
+* **`__tests__/helpers/makeApp.js`** — фабрика мини-Express-приложения (без `seed()`, без `listen()`).
+* **`__tests__/setup-env.js`** — изолирует тесты от боевого `.env` (отключает `dotenv.config()`, фиксирует `JWT_SECRET=carvix-test-secret-key`).
+
+### Пороги покрытия (ниже — CI падает)
+
+```js
+// jest.config.js
+coverageThreshold: {
+  global: { branches: 60, functions: 70, lines: 70, statements: 70 }
+}
+```
+
+Текущие значения: **statements 78 %, branches 77 %, functions 79 %, lines 82 %**. `middleware/auth.js` и `middleware/rbac.js` покрыты на **100 %**.
+
+### CI/CD
+
+`.github/workflows/ci.yml` запускает все тесты на двух версиях Node (18 и 20) при каждом push/PR и публикует HTML-отчёт о покрытии как артефакт. После успешного прохождения CI Render автоматически деплоит изменения с `main`.
 
 ## Почему PostgreSQL, а не MySQL?
 
