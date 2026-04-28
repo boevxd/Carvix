@@ -98,6 +98,24 @@ function shake(form) {
   );
 }
 
+/* ---------- Counter-анимация мини-статов ---------- */
+function animateCounter(el) {
+  const target = Number(el.dataset.target);
+  if (!target) return;
+  const duration = 1200;
+  const start = performance.now();
+  const tick = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(target * eased);
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+setTimeout(() => {
+  $$('.stat__num[data-target]').forEach(animateCounter);
+}, 950);
+
 /* ---------- LOGIN ---------- */
 forms.login.addEventListener('submit', async (e) => {
   e.preventDefault();
