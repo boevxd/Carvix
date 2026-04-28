@@ -90,7 +90,12 @@ router.post('/register', async (req, res) => {
     const user = rows[0];
 
     const token = jwt.sign(
-      { id: user.id, login: user.login, rol_id: user.rol_id },
+      {
+        id: user.id,
+        login: user.login,
+        rol_id: user.rol_id,
+        rol_nazvanie: user.rol_nazvanie,
+      },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
@@ -134,7 +139,12 @@ router.post('/login', async (req, res) => {
     delete user.parol_hash;
 
     const token = jwt.sign(
-      { id: user.id, login: user.login, rol_id: user.rol_id },
+      {
+        id: user.id,
+        login: user.login,
+        rol_id: user.rol_id,
+        rol_nazvanie: user.rol_nazvanie,
+      },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );

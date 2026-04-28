@@ -54,10 +54,46 @@ async function raw(sql, params) {
   return pgPool.query(sql, params);
 }
 
+/**
+ * Транзакция. Внутри fn(tx) использовать tx.execute(...) — точно так же,
+ * как обычный pool.execute. При ошибке — автоматический ROLLBACK.
+ *
+ * Пример:
+ *   const id = await transaction(async (tx) => {
+ *     const [r1] = await tx.execute('INSERT INTO ... RETURNING id', [...]);
+ *     await tx.execute('UPDATE ... WHERE id = ?', [r1[0].id]);
+ *     return r1[0].id;
+ *   });
+ */
+async function transaction(fn) {
+  const client = await pgPool.connect();
+  try {
+    await client.query('BEGIN');
+    const tx = {
+      execute: async (sql, params = []) => {
+        let i = 0;
+        const text = sql.replace(/\?/g, () => `$${++i}`);
+        const r = await client.query(text, params);
+        return [r.rows, r.fields];
+      },
+      raw: (sql, params) => client.query(sql, params),
+    };
+    const result = await fn(tx);
+    await client.query('COMMIT');
+    return result;
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 module.exports = {
   execute,
   query,
   raw,
+  transaction,
   end: () => pgPool.end(),
   pool: pgPool,
 };
