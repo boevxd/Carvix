@@ -11,7 +11,14 @@
 
 const fs = require('fs');
 const path = require('path');
+const bcrypt = require('bcryptjs');
 const pool = require('./db');
+
+// Демо-логины: ВСЕ имеют пароль "password" в режиме SEED_DEMO
+const DEMO_LOGINS = [
+  'ivanov', 'petrov', 'sidorov', 'kuznetsov', 'morozova', 'volkova',
+  'sokolov', 'lebedev', 'novikov', 'orlova', 'zaytsev', 'frolova',
+];
 
 const ROLES = [
   'Аналитик',
@@ -82,11 +89,41 @@ async function autoSeedDemoIfEmpty() {
   console.log('[seed] Демо-данные успешно загружены. Тестовые логины: ivanov / petrov / volkova (пароль: password)');
 }
 
+/**
+ * Сброс паролей демо-учёток к "password" при SEED_DEMO=true.
+ *
+ * Зачем: если в seed_data.sql случайно попал некорректный bcrypt-хэш,
+ * после автозалива учётки существуют, но войти в них нельзя. Этот шаг
+ * генерирует свежий валидный хэш через bcryptjs (что 100% совместимо с
+ * compare-проверкой в /api/auth/login) и применяет его ко всем демо-юзерам.
+ *
+ * Безопасно: затрагивает ТОЛЬКО заранее известный список логинов
+ * (ivanov, petrov, ...). На пользователей, зарегистрированных вручную,
+ * никак не влияет.
+ */
+async function resetDemoPasswordsIfNeeded() {
+  if (String(process.env.SEED_DEMO).toLowerCase() !== 'true') return;
+
+  const newHash = bcrypt.hashSync('password', 10);
+  const placeholders = DEMO_LOGINS.map(() => '?').join(', ');
+  const [r] = await pool.execute(
+    `UPDATE sotrudnik
+        SET parol_hash = ?
+      WHERE login IN (${placeholders})
+      RETURNING login`,
+    [newHash, ...DEMO_LOGINS]
+  );
+  if (r.length) {
+    console.log(`[seed] Сброшены пароли демо-учёток к "password" (${r.length} шт.)`);
+  }
+}
+
 async function seed() {
   await applySchema();
   await ensureRows('rol', ROLES);
   await ensureRows('podrazdelenie', DEFAULT_PODRAZDELENIYA);
   await autoSeedDemoIfEmpty();
+  await resetDemoPasswordsIfNeeded();
 }
 
 module.exports = seed;

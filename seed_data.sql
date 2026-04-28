@@ -76,18 +76,18 @@ INSERT INTO rol (id, nazvanie) VALUES
 
 -- ---------- 5. Сотрудники (пароль для всех: "password") ----------
 INSERT INTO sotrudnik (id, fio, login, parol_hash, rol_id, podrazdelenie_id) VALUES
-  (1,  'Иванов Иван Иванович',          'ivanov',    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 5, 1),
-  (2,  'Петров Пётр Петрович',          'petrov',    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 4, 4),
-  (3,  'Сидоров Алексей Олегович',      'sidorov',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 3, 4),
-  (4,  'Кузнецов Дмитрий Сергеевич',    'kuznetsov', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 3, 4),
-  (5,  'Морозова Анна Викторовна',      'morozova',  '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 2, 1),
-  (6,  'Волкова Екатерина Игоревна',    'volkova',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 1, 1),
-  (7,  'Соколов Михаил Андреевич',      'sokolov',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 6, 2),
-  (8,  'Лебедев Артём Викторович',      'lebedev',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 6, 3),
-  (9,  'Новиков Юрий Павлович',         'novikov',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 3, 4),
-  (10, 'Орлова Светлана Николаевна',    'orlova',    '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 2, 1),
-  (11, 'Зайцев Игорь Анатольевич',      'zaytsev',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 6, 2),
-  (12, 'Фролова Мария Алексеевна',      'frolova',   '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 1, 1);
+  (1,  'Иванов Иван Иванович',          'ivanov',    '$2a$10$ZlNgC3Fd6lyC2w2cejPgTeKHBts3OGbrXmo69lCnAbxHuEhWRZANS', 5, 1),
+  (2,  'Петров Пётр Петрович',          'petrov',    '$2a$10$ZlNgC3Fd6lyC2w2cejPgTeKHBts3OGbrXmo69lCnAbxHuEhWRZANS', 4, 4),
+  (3,  'Сидоров Алексей Олегович',      'sidorov',   '$2a$10$ZlNgC3Fd6lyC2w2cejPgTeKHBts3OGbrXmo69lCnAbxHuEhWRZANS', 3, 4),
+  (4,  'Кузнецов Дмитрий Сергеевич',    'kuznetsov', '$2a$10$ZlNgC3Fd6lyC2w2cejPgTeKHBts3OGbrXmo69lCnAbxHuEhWRZANS', 3, 4),
+  (5,  'Морозова Анна Викторовна',      'morozova',  '$2a$10$ZlNgC3Fd6lyC2w2cejPgTeKHBts3OGbrXmo69lCnAbxHuEhWRZANS', 2, 1),
+  (6,  'Волкова Екатерина Игоревна',    'volkova',   '$2a$10$ZlNgC3Fd6lyC2w2cejPgTeKHBts3OGbrXmo69lCnAbxHuEhWRZANS', 1, 1),
+  (7,  'Соколов Михаил Андреевич',      'sokolov',   '$2a$10$ZlNgC3Fd6lyC2w2cejPgTeKHBts3OGbrXmo69lCnAbxHuEhWRZANS', 6, 2),
+  (8,  'Лебедев Артём Викторович',      'lebedev',   '$2a$10$ZlNgC3Fd6lyC2w2cejPgTeKHBts3OGbrXmo69lCnAbxHuEhWRZANS', 6, 3),
+  (9,  'Новиков Юрий Павлович',         'novikov',   '$2a$10$ZlNgC3Fd6lyC2w2cejPgTeKHBts3OGbrXmo69lCnAbxHuEhWRZANS', 3, 4),
+  (10, 'Орлова Светлана Николаевна',    'orlova',    '$2a$10$ZlNgC3Fd6lyC2w2cejPgTeKHBts3OGbrXmo69lCnAbxHuEhWRZANS', 2, 1),
+  (11, 'Зайцев Игорь Анатольевич',      'zaytsev',   '$2a$10$ZlNgC3Fd6lyC2w2cejPgTeKHBts3OGbrXmo69lCnAbxHuEhWRZANS', 6, 2),
+  (12, 'Фролова Мария Алексеевна',      'frolova',   '$2a$10$ZlNgC3Fd6lyC2w2cejPgTeKHBts3OGbrXmo69lCnAbxHuEhWRZANS', 1, 1);
 
 -- ---------- 6. Транспортные средства ----------
 INSERT INTO transportnoe_sredstvo (id, gos_nomer, invent_nomer, model_id, podrazdelenie_id, probeg, data_vypuska, tekuschee_sostoyanie) VALUES
