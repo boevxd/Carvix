@@ -127,3 +127,190 @@ CREATE TABLE IF NOT EXISTS vlozhenie (
   tip_faila      VARCHAR(50),
   data_zagruzki  TIMESTAMP
 );
+
+-- =========================================================
+-- ФИНАНСОВЫЙ МОДУЛЬ — таблицы учёта затрат и расходов
+-- =========================================================
+
+-- 15. Приход запчастей (заголовок накладной от поставщика)
+CREATE TABLE IF NOT EXISTS prikhod_zapchasti (
+  id             SERIAL PRIMARY KEY,
+  postavshik_id  INT NOT NULL REFERENCES postavshik(id),
+  data_prikhoda  DATE NOT NULL,
+  nomer_nakl     VARCHAR(50),
+  summa_obshaya  NUMERIC(12,2) NOT NULL CHECK (summa_obshaya >= 0),
+  kommentariy    TEXT,
+  sozdatel_id    INT REFERENCES sotrudnik(id)
+);
+
+-- 16. Позиции приходной накладной
+CREATE TABLE IF NOT EXISTS prikhod_zapchasti_pozitsii (
+  id                SERIAL PRIMARY KEY,
+  prikhod_id        INT NOT NULL REFERENCES prikhod_zapchasti(id) ON DELETE CASCADE,
+  zapchast_id       INT NOT NULL REFERENCES zapchast(id),
+  kolichestvo       INT NOT NULL CHECK (kolichestvo > 0),
+  tsena_za_edinicu  NUMERIC(10,2) NOT NULL CHECK (tsena_za_edinicu >= 0)
+);
+
+-- 17. Тарифы нормо-часов (по типам ремонта, с историей изменений)
+CREATE TABLE IF NOT EXISTS tarif_rabot (
+  id              SERIAL PRIMARY KEY,
+  tip_remonta_id  INT NOT NULL REFERENCES tip_remonta(id),
+  tsena_za_chas   NUMERIC(10,2) NOT NULL CHECK (tsena_za_chas >= 0),
+  data_s          DATE NOT NULL,
+  data_po         DATE
+);
+
+-- 18. Бюджеты подразделений (план) — по месяцам и категориям
+CREATE TABLE IF NOT EXISTS byudzhet (
+  id                SERIAL PRIMARY KEY,
+  podrazdelenie_id  INT NOT NULL REFERENCES podrazdelenie(id),
+  god               INT NOT NULL CHECK (god BETWEEN 2020 AND 2100),
+  mesyats           INT NOT NULL CHECK (mesyats BETWEEN 1 AND 12),
+  kategoriya        VARCHAR(50) NOT NULL,    -- remont | zapchasti | topliv | prochee
+  plan_summa        NUMERIC(12,2) NOT NULL CHECK (plan_summa >= 0),
+  UNIQUE (podrazdelenie_id, god, mesyats, kategoriya)
+);
+
+-- 19. Прочие расходы автопарка (топливо, страховка, налоги, мойка...)
+CREATE TABLE IF NOT EXISTS prochiy_raskhod (
+  id                SERIAL PRIMARY KEY,
+  ts_id             INT REFERENCES transportnoe_sredstvo(id),
+  podrazdelenie_id  INT REFERENCES podrazdelenie(id),
+  data              DATE NOT NULL,
+  kategoriya        VARCHAR(50) NOT NULL,    -- topliv | strakhovka | nalog | moyka | prochee
+  summa             NUMERIC(10,2) NOT NULL CHECK (summa >= 0),
+  opisanie          TEXT
+);
+
+-- 20. Нормо-часы по конкретному ремонту (труд механиков)
+CREATE TABLE IF NOT EXISTS remont_normy (
+  remont_id    INT NOT NULL REFERENCES remont(id) ON DELETE CASCADE,
+  mekhanik_id  INT NOT NULL REFERENCES sotrudnik(id),
+  chasy        NUMERIC(5,2) NOT NULL CHECK (chasy > 0),
+  tarif_id     INT REFERENCES tarif_rabot(id),
+  PRIMARY KEY (remont_id, mekhanik_id)
+);
+
+-- 21. Аудит финансовых операций (audit log)
+CREATE TABLE IF NOT EXISTS finansoviy_log (
+  id              SERIAL PRIMARY KEY,
+  data_operatsii  TIMESTAMP NOT NULL DEFAULT NOW(),
+  sotrudnik_id    INT REFERENCES sotrudnik(id),
+  tip_operatsii   VARCHAR(50) NOT NULL,
+  obyekt_tablitsa VARCHAR(50),
+  obyekt_id       INT,
+  summa           NUMERIC(12,2),
+  kommentariy     TEXT
+);
+
+-- Индексы под аналитические запросы
+CREATE INDEX IF NOT EXISTS idx_prochiy_raskhod_data       ON prochiy_raskhod(data);
+CREATE INDEX IF NOT EXISTS idx_prochiy_raskhod_ts         ON prochiy_raskhod(ts_id);
+CREATE INDEX IF NOT EXISTS idx_byudzhet_period            ON byudzhet(god, mesyats);
+CREATE INDEX IF NOT EXISTS idx_remont_data_okonchaniya    ON remont(data_okonchaniya);
+CREATE INDEX IF NOT EXISTS idx_finansoviy_log_data        ON finansoviy_log(data_operatsii);
+
+-- =========================================================
+-- VIEW для отчётов и аналитики
+-- =========================================================
+
+-- TCO (Total Cost of Ownership) по каждому транспортному средству
+CREATE OR REPLACE VIEW v_tco_ts AS
+SELECT
+  ts.id                                                AS ts_id,
+  ts.gos_nomer,
+  ts.invent_nomer,
+  ma.nazvanie                                          AS marka_nazvanie,
+  mo.nazvanie                                          AS model_nazvanie,
+  pd.nazvanie                                          AS podrazdelenie_nazvanie,
+  COUNT(DISTINCT z.id)                                 AS kolvo_zayavok,
+  COUNT(DISTINCT r.id)                                 AS kolvo_remontov,
+  COALESCE(SUM(r.stoimost_rabot), 0)                   AS itogo_rabot,
+  COALESCE(SUM(r.stoimost_zapchastey), 0)              AS itogo_zapchastey,
+  COALESCE((SELECT SUM(summa) FROM prochiy_raskhod pr2
+              WHERE pr2.ts_id = ts.id), 0)             AS itogo_prochee,
+  COALESCE(SUM(r.stoimost_rabot + r.stoimost_zapchastey), 0)
+    + COALESCE((SELECT SUM(summa) FROM prochiy_raskhod pr3
+                  WHERE pr3.ts_id = ts.id), 0)         AS tco_obshchee
+FROM transportnoe_sredstvo ts
+LEFT JOIN model         mo ON mo.id = ts.model_id
+LEFT JOIN marka         ma ON ma.id = mo.marka_id
+LEFT JOIN podrazdelenie pd ON pd.id = ts.podrazdelenie_id
+LEFT JOIN zayavka       z  ON z.ts_id = ts.id
+LEFT JOIN remont        r  ON r.zayavka_id = z.id
+GROUP BY ts.id, ma.nazvanie, mo.nazvanie, pd.nazvanie;
+
+-- Фактические расходы по подразделениям, помесячно, по категориям
+CREATE OR REPLACE VIEW v_fakt_po_podrazdeleniyu AS
+SELECT
+  pd.id                              AS podrazdelenie_id,
+  pd.nazvanie                        AS podrazdelenie_nazvanie,
+  EXTRACT(YEAR  FROM x.data)::INT    AS god,
+  EXTRACT(MONTH FROM x.data)::INT    AS mesyats,
+  x.kategoriya                       AS kategoriya,
+  SUM(x.summa)                       AS fakt_summa
+FROM (
+  -- Стоимость работ (закрытые ремонты)
+  SELECT
+    ts.podrazdelenie_id,
+    r.data_okonchaniya::date AS data,
+    'remont'                 AS kategoriya,
+    r.stoimost_rabot         AS summa
+  FROM remont r
+  JOIN zayavka z                ON z.id = r.zayavka_id
+  JOIN transportnoe_sredstvo ts ON ts.id = z.ts_id
+  WHERE r.data_okonchaniya IS NOT NULL AND r.stoimost_rabot > 0
+
+  UNION ALL
+
+  -- Стоимость запчастей (закрытые ремонты)
+  SELECT
+    ts.podrazdelenie_id,
+    r.data_okonchaniya::date AS data,
+    'zapchasti'              AS kategoriya,
+    r.stoimost_zapchastey    AS summa
+  FROM remont r
+  JOIN zayavka z                ON z.id = r.zayavka_id
+  JOIN transportnoe_sredstvo ts ON ts.id = z.ts_id
+  WHERE r.data_okonchaniya IS NOT NULL AND r.stoimost_zapchastey > 0
+
+  UNION ALL
+
+  -- Прочие расходы
+  SELECT
+    COALESCE(pr.podrazdelenie_id, ts.podrazdelenie_id) AS podrazdelenie_id,
+    pr.data                                            AS data,
+    pr.kategoriya                                      AS kategoriya,
+    pr.summa                                           AS summa
+  FROM prochiy_raskhod pr
+  LEFT JOIN transportnoe_sredstvo ts ON ts.id = pr.ts_id
+) x
+JOIN podrazdelenie pd ON pd.id = x.podrazdelenie_id
+GROUP BY pd.id, pd.nazvanie,
+         EXTRACT(YEAR FROM x.data), EXTRACT(MONTH FROM x.data),
+         x.kategoriya;
+
+-- План/факт по бюджетам с процентом исполнения
+CREATE OR REPLACE VIEW v_byudzhet_plan_fakt AS
+SELECT
+  b.id                                              AS byudzhet_id,
+  b.podrazdelenie_id,
+  pd.nazvanie                                       AS podrazdelenie_nazvanie,
+  b.god,
+  b.mesyats,
+  b.kategoriya,
+  b.plan_summa,
+  COALESCE(f.fakt_summa, 0)                         AS fakt_summa,
+  b.plan_summa - COALESCE(f.fakt_summa, 0)          AS otklonenie,
+  CASE
+    WHEN b.plan_summa = 0 THEN 0
+    ELSE ROUND(COALESCE(f.fakt_summa, 0) / b.plan_summa * 100, 1)
+  END                                               AS protsent_ispolneniya
+FROM byudzhet b
+JOIN podrazdelenie pd ON pd.id = b.podrazdelenie_id
+LEFT JOIN v_fakt_po_podrazdeleniyu f
+  ON f.podrazdelenie_id = b.podrazdelenie_id
+ AND f.god              = b.god
+ AND f.mesyats          = b.mesyats
+ AND f.kategoriya       = b.kategoriya;
