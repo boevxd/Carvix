@@ -68,12 +68,17 @@ async function autoSeedDemoIfEmpty() {
     return;
   }
 
-  // Проверяем количество сотрудников. Если таблица только что создана — 0 строк.
-  const [rows] = await pool.execute('SELECT COUNT(*)::int AS n FROM sotrudnik');
-  const count = rows[0]?.n ?? 0;
-
-  if (count > 0) {
-    console.log(`[seed] SEED_DEMO=true, но в БД уже есть ${count} сотрудников — пропускаю автозалив.`);
+  // Триггер: отсутствует канонический демо-юзер `ivanov`. Так мы корректно
+  // обработаем три случая:
+  //   1. Чистая БД                 → грузим демо.
+  //   2. Только ручные регистрации → грузим демо (TRUNCATE очистит, но это
+  //      демо-стенд диплома; реальных пользователей здесь не должно быть).
+  //   3. Демо уже залито           → ничего не делаем.
+  const [check] = await pool.execute(
+    "SELECT 1 FROM sotrudnik WHERE login = 'ivanov' LIMIT 1"
+  );
+  if (check.length) {
+    console.log('[seed] Демо-учётка ivanov найдена — автозалив пропущен.');
     return;
   }
 
@@ -83,10 +88,10 @@ async function autoSeedDemoIfEmpty() {
     return;
   }
 
-  console.log('[seed] БД пустая + SEED_DEMO=true → запускаю seed_data.sql …');
+  console.log('[seed] Канонической демо-учётки нет → запускаю seed_data.sql …');
   const sql = fs.readFileSync(sqlFile, 'utf8');
   await pool.raw(sql);
-  console.log('[seed] Демо-данные успешно загружены. Тестовые логины: ivanov / petrov / volkova (пароль: password)');
+  console.log('[seed] Демо-данные успешно загружены. Логины: ivanov / petrov / volkova (пароль: password)');
 }
 
 /**
