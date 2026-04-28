@@ -27,18 +27,19 @@
       margin-bottom: 28px;
     }
     .dash__brand {
-      display: flex; align-items: center; gap: 14px;
+      display: flex; align-items: center; gap: 12px;
       margin-bottom: 22px;
     }
     .dash__logo {
-      width: 76px; height: 52px;
-      padding: 6px 8px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, #fff, #FAF3E2);
-      box-shadow: 0 10px 24px -10px rgba(60,50,30,.25), inset 0 0 0 1px rgba(255,255,255,.7);
-      display: grid; place-items: center;
+      width: 110px;
+      display: block;
     }
-    .dash__logo img { width: 100%; height: 100%; object-fit: contain; }
+    .dash__logo img {
+      width: 100%;
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 6px 14px rgba(120, 90, 40, .22));
+    }
     .dash__brand-name {
       font-family: 'Cormorant Garamond', serif;
       font-size: 28px; font-weight: 600; letter-spacing: -.3px;
