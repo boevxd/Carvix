@@ -6,6 +6,8 @@ const cors = require('cors');
 const seed = require('./seed');
 const authRoutes = require('./routes/auth');
 const financeRoutes = require('./routes/finance');
+const zayavkiRoutes = require('./routes/zayavki');
+const remontyRoutes = require('./routes/remonty');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +19,8 @@ app.use('/images', express.static(path.join(__dirname, 'images')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/finance', financeRoutes);
+app.use('/api/zayavki', zayavkiRoutes);
+app.use('/api/remonty', remontyRoutes);
 
 app.get('/health', (_, res) => res.json({ ok: true }));
 

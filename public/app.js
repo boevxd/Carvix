@@ -75,22 +75,34 @@ async function api(path, options = {}) {
 /* ----------------- Auth ----------------- */
 async function loadUser() {
   CURRENT_USER = await api('/api/auth/me');
+  window.CURRENT_USER = CURRENT_USER;       // доступно из app-roles.js
   $('#userName').textContent = CURRENT_USER.fio;
   $('#userRole').textContent = CURRENT_USER.rol_nazvanie;
   $('#userAvatar').textContent = CURRENT_USER.fio[0] || '?';
 
-  // скрыть вкладки если нет прав
+  // ---- Видимость пунктов меню по ролям ----------------------
   const role = CURRENT_USER.rol_nazvanie;
-  const FINANCE_READ = ['Директор', 'Аналитик', 'Главный механик'];
-  if (!FINANCE_READ.includes(role)) {
-    ['expenses','budgets','tco','receipts','audit'].forEach(s => {
-      const link = document.querySelector(`.nav__item[data-section="${s}"]`);
-      if (link) link.style.display = 'none';
-    });
-  }
-  if (!['Директор', 'Аналитик'].includes(role)) {
-    const audit = document.querySelector(`.nav__item[data-section="audit"]`);
-    if (audit) audit.style.display = 'none';
+
+  // Полная карта: какая роль видит какие разделы
+  const SECTIONS_BY_ROLE = {
+    'Директор':         ['dashboard','requests','dispatch','repairs','expenses','budgets','tco','receipts','audit'],
+    'Аналитик':         ['dashboard','requests','expenses','budgets','tco','receipts','audit'],
+    'Главный механик':  ['dashboard','requests','dispatch','repairs','expenses','budgets','tco','receipts'],
+    'Диспетчер':        ['requests','dispatch'],
+    'Механик':          ['repairs','requests'],
+    'Пользователь':     ['requests'],
+  };
+  const allowed = SECTIONS_BY_ROLE[role] || ['requests'];
+
+  document.querySelectorAll('.nav__item').forEach(link => {
+    const sec = link.dataset.section;
+    if (!allowed.includes(sec)) link.style.display = 'none';
+  });
+
+  // Если текущий хеш не доступен этой роли — редиректим в первый доступный.
+  const cur = location.hash.replace('#','') || 'dashboard';
+  if (!allowed.includes(cur)) {
+    location.replace(`#${allowed[0]}`);
   }
 }
 
@@ -127,6 +139,11 @@ const ROUTES = {
   receipts:  renderReceipts,
   audit:     renderAudit,
 };
+
+// Открываем ROUTES наружу — внешние модули (app-roles.js) могут расширять
+// объект напрямую: Object.assign(window.CARVIX_ROUTES, { requests: fn, ... }).
+// Это работает потому что navigate() вызывается асинхронно, после loadUser().
+window.CARVIX_ROUTES = ROUTES;
 
 function navigate() {
   const hash = location.hash.replace('#', '') || 'dashboard';

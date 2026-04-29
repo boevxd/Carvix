@@ -21,7 +21,12 @@
 
 const express = require('express');
 
-function makeApp({ withAuth = true, withFinance = true } = {}) {
+function makeApp({
+  withAuth = true,
+  withFinance = true,
+  withZayavki = false,
+  withRemonty = false,
+} = {}) {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
 
@@ -32,6 +37,14 @@ function makeApp({ withAuth = true, withFinance = true } = {}) {
   if (withFinance) {
     const financeRoutes = require('../../routes/finance');
     app.use('/api/finance', financeRoutes);
+  }
+  if (withZayavki) {
+    const zayavkiRoutes = require('../../routes/zayavki');
+    app.use('/api/zayavki', zayavkiRoutes);
+  }
+  if (withRemonty) {
+    const remontyRoutes = require('../../routes/remonty');
+    app.use('/api/remonty', remontyRoutes);
   }
 
   app.get('/health', (_, res) => res.json({ ok: true }));

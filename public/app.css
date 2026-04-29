@@ -592,3 +592,206 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
   background: rgba(255,255,255,.03);
   border-color: rgba(255,255,255,.08);
 }
+
+/* ──────────────────────────────────────────────────────────
+   ЗАЯВКИ / РАСПРЕДЕЛЕНИЕ / РЕМОНТЫ
+   ────────────────────────────────────────────────────────── */
+
+/* Карточка заявки */
+.req-list { display: grid; gap: 12px; }
+.req-card {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color .15s, transform .15s;
+}
+.req-card:hover { border-color: rgba(184, 148, 96, .5); }
+.req-card__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.req-card__title { font-size: 15px; }
+.req-card__plate {
+  display: inline-block;
+  padding: 2px 10px;
+  margin-left: 8px;
+  background: rgba(184, 148, 96, .15);
+  color: #6b4f1f;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  font-size: 13px;
+}
+[data-theme="dark"] .req-card__plate { color: #d4ac6e; background: rgba(184,148,96,.18); }
+
+.req-card__meta {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  font-size: 13px; color: var(--c-muted);
+}
+.req-card__mech--empty { color: #b94a48; }
+.req-card__desc {
+  color: var(--c-text);
+  font-size: 13.5px;
+  line-height: 1.5;
+  background: rgba(0,0,0,.02);
+  padding: 8px 12px; border-radius: 8px;
+  border-left: 3px solid var(--c-border);
+}
+[data-theme="dark"] .req-card__desc { background: rgba(255,255,255,.03); }
+.req-card__actions {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--c-border);
+  padding-top: 10px;
+}
+.req-card__totals {
+  display: flex; flex-wrap: wrap; gap: 18px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: rgba(47, 143, 94, .08);
+  border-radius: 8px;
+  font-size: 13.5px;
+}
+[data-theme="dark"] .req-card__totals { background: rgba(47, 143, 94, .14); }
+
+/* Кнопки-варианты */
+.btn--accent {
+  background: linear-gradient(135deg, #b89460, #c8a876);
+  color: #fff !important;
+  border: 1px solid #a17e4d;
+}
+.btn--accent:hover { filter: brightness(1.08); }
+.btn--ghost {
+  background: transparent;
+  color: var(--c-muted);
+  border: 1px solid transparent;
+}
+.btn--ghost:hover { background: rgba(0,0,0,.04); color: var(--c-text); }
+[data-theme="dark"] .btn--ghost:hover { background: rgba(255,255,255,.06); }
+
+/* Бэйдж статуса */
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: rgba(0,0,0,.06);
+  color: var(--c-muted);
+}
+[data-theme="dark"] .status-badge { background: rgba(255,255,255,.08); }
+.status-badge.st-new       { background: rgba(47, 90, 156, .15); color: #2f5a9c; }
+.status-badge.st-progress  { background: rgba(184, 148, 96, .18); color: #8e6630; }
+.status-badge.st-done      { background: rgba(47, 143, 94, .18); color: #1f7849; }
+.status-badge.st-rejected  { background: rgba(185, 74, 72, .18); color: #b94a48; }
+.status-badge.st-waiting   { background: rgba(198, 147, 23, .18); color: #8b6710; }
+.status-badge.st-pending   { background: rgba(119, 110, 99, .18); color: #5a544c; }
+[data-theme="dark"] .status-badge.st-progress { color: #d4ac6e; }
+[data-theme="dark"] .status-badge.st-done     { color: #4dbb85; }
+[data-theme="dark"] .status-badge.st-new      { color: #6e9be0; }
+
+/* Распределение — двухколоночник */
+.dispatch-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+}
+.dispatch-col__title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.badge-count {
+  background: var(--c-accent, #b89460);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 10px;
+  font-size: 13px;
+}
+
+/* Карточки механиков */
+.mekhaniki-list {
+  display: grid; gap: 8px;
+  max-height: 70vh; overflow-y: auto;
+}
+.mekh-card, .mekh-row {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+.mekh-card--free { border-color: rgba(47, 143, 94, .55); background: rgba(47, 143, 94, .04); }
+.mekh-card__head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.mekh-card__meta { font-size: 12.5px; color: var(--c-muted); margin-top: 2px; }
+.mekh-card__load {
+  font-size: 12px; padding: 2px 10px; border-radius: 999px;
+  background: rgba(0,0,0,.06); color: var(--c-muted);
+}
+.mekh-card__load.is-zero  { background: rgba(47,143,94,.18); color: #1f7849; font-weight: 600; }
+.mekh-card__load.is-mid   { background: rgba(198,147,23,.18); color: #8b6710; }
+.mekh-card__load.is-busy  { background: rgba(185,74,72,.18); color: #b94a48; }
+
+/* Список механиков-радиокнопок (модаль ручного назначения) */
+.mekh-row {
+  display: flex; align-items: center; gap: 12px;
+  cursor: pointer;
+  transition: border-color .12s;
+}
+.mekh-row:hover { border-color: rgba(184,148,96,.55); }
+.mekh-row--local { background: rgba(184,148,96,.08); }
+.mekh-row__fio { font-weight: 500; }
+.mekh-row__meta { font-size: 12.5px; color: var(--c-muted); }
+.badge-local {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  background: rgba(184,148,96,.25);
+  color: #6b4f1f;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+[data-theme="dark"] .badge-local { color: #d4ac6e; }
+
+/* Заголовки секций «Открытые / закрытые ремонты» */
+.repair-section-title {
+  margin: 18px 0 10px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--c-muted);
+}
+.repair-card.is-open  { border-left: 4px solid #b89460; }
+.repair-card.is-closed { border-left: 4px solid #2f8f5e; opacity: .85; }
+.repair-card { /* extends .req-card */
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  margin-bottom: 12px;
+}
+
+/* Деталь-карта ключ/значение */
+.kv { display: grid; gap: 6px; }
+.kv__row {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--c-border);
+  font-size: 14px;
+}
+.kv__row > div:first-child { color: var(--c-muted); }
+
+/* Адаптив */
+@media (max-width: 980px) {
+  .dispatch-grid { grid-template-columns: 1fr; }
+  .kv__row { grid-template-columns: 130px 1fr; }
+}

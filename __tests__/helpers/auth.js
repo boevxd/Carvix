@@ -15,14 +15,18 @@ const ROLES = {
   ANALYTIC:    'Аналитик',
   MECHANIC:    'Главный механик',
   USER:        'Пользователь',
+  DISPATCHER:  'Диспетчер',
+  WORKER:      'Механик',
   UNKNOWN:     'Неизвестная роль',
 };
 
 const DEFAULT_USER_BY_ROLE = {
-  [ROLES.DIRECTOR]: { id: 1, fio: 'Иванов И.И.', login: 'ivanov',  rol_id: 5 },
-  [ROLES.ANALYTIC]: { id: 2, fio: 'Сидоров С.С.', login: 'analytic', rol_id: 6 },
-  [ROLES.MECHANIC]: { id: 3, fio: 'Петров П.П.', login: 'petrov',  rol_id: 7 },
-  [ROLES.USER]:     { id: 4, fio: 'Кузнецов К.К.', login: 'user',    rol_id: 1 },
+  [ROLES.DIRECTOR]:   { id: 1, fio: 'Иванов И.И.',  login: 'ivanov',    rol_id: 5, podrazdelenie_id: 1 },
+  [ROLES.ANALYTIC]:   { id: 2, fio: 'Сидоров С.С.', login: 'analytic',  rol_id: 6, podrazdelenie_id: 1 },
+  [ROLES.MECHANIC]:   { id: 3, fio: 'Петров П.П.',  login: 'petrov',    rol_id: 7, podrazdelenie_id: 4 },
+  [ROLES.USER]:       { id: 4, fio: 'Кузнецов К.К.', login: 'user',     rol_id: 1, podrazdelenie_id: 2 },
+  [ROLES.DISPATCHER]: { id: 5, fio: 'Морозова А.В.', login: 'morozova', rol_id: 2, podrazdelenie_id: 1 },
+  [ROLES.WORKER]:     { id: 6, fio: 'Сидоров А.О.',  login: 'sidorov',  rol_id: 3, podrazdelenie_id: 4 },
 };
 
 /**

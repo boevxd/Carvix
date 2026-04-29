@@ -28,7 +28,11 @@ function requireRole(...allowedRoles) {
   };
 }
 
-// Сахар: чаще всего нужны эти 2 группы
+// ──────────────────────────────────────────────────────────
+// Готовые группы ролей (сахар)
+// ──────────────────────────────────────────────────────────
+
+// Финансы
 const requireFinanceRead = requireRole(
   'Директор',
   'Аналитик',
@@ -36,4 +40,47 @@ const requireFinanceRead = requireRole(
 );
 const requireFinanceWrite = requireRole('Директор', 'Главный механик');
 
-module.exports = { requireRole, requireFinanceRead, requireFinanceWrite };
+// Заявки/ремонты
+//
+// Создавать заявку могут все, кому она «принадлежит» как пользователю
+// автопарка: Пользователь, Диспетчер, Главный механик и Директор.
+// Механик и Аналитик заявки не создают.
+const requireZayavkaCreate = requireRole(
+  'Пользователь',
+  'Диспетчер',
+  'Главный механик',
+  'Директор'
+);
+
+// Видеть **все** заявки могут диспетчер и руководство.
+// Пользователь и механик ограничены своими — это контролируется в SQL.
+const requireZayavkaReadAll = requireRole(
+  'Диспетчер',
+  'Главный механик',
+  'Директор',
+  'Аналитик'
+);
+
+// Назначать механика, делать автонаводку, менять статус
+const requireDispetcher = requireRole(
+  'Диспетчер',
+  'Главный механик',
+  'Директор'
+);
+
+// Работа с ремонтом (старт, финиш, журнал нормо-часов)
+const requireMekhanik = requireRole(
+  'Механик',
+  'Главный механик',
+  'Директор'
+);
+
+module.exports = {
+  requireRole,
+  requireFinanceRead,
+  requireFinanceWrite,
+  requireZayavkaCreate,
+  requireZayavkaReadAll,
+  requireDispetcher,
+  requireMekhanik,
+};

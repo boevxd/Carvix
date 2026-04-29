@@ -8,7 +8,8 @@
     <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-14%2B-4169E1?logo=postgresql&logoColor=white" />
     <img alt="JWT" src="https://img.shields.io/badge/Auth-JWT-000000?logo=jsonwebtokens" />
     <img alt="Tests" src="https://img.shields.io/badge/Tests-Jest%20%E2%9C%94-99425b?logo=jest&logoColor=white" />
-    <img alt="Coverage" src="https://img.shields.io/badge/Coverage-82%25-brightgreen" />
+    <img alt="Coverage" src="https://img.shields.io/badge/Coverage-83%25-brightgreen" />
+    <img alt="Tests count" src="https://img.shields.io/badge/Tests-201-blue?logo=jest" />
     <img alt="CI" src="https://github.com/boevxd/Carvix/actions/workflows/ci.yml/badge.svg" />
     <img alt="Render" src="https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white" />
     <img alt="License" src="https://img.shields.io/badge/license-MIT-1c1b17" />
@@ -177,7 +178,7 @@ curl -X POST http://localhost:3000/api/auth/login \
 
 ## Тесты и контроль качества
 
-Проект покрыт автоматическими тестами на **Jest + supertest** — 119 тестов, **82 % покрытия** строк бэкенда.
+Проект покрыт автоматическими тестами на **Jest + supertest** — **201 тест**, **83 % покрытия** строк бэкенда.
 
 ### Запуск
 
@@ -199,10 +200,12 @@ npm run test:ci           # как на CI: --runInBand --ci + coverage
 | `__tests__/integration/expenses` | 1 | 22 | CRUD расходов + RBAC + CSV-импорт + audit-log |
 | `__tests__/integration/budgets` | 1 | 20 | CRUD бюджетов + bulk + copy-from-prev-year + плана/факт + RBAC |
 | `__tests__/integration/parts-receipts` | 1 | 15 | накладные на запчасти, склад в транзакции, реверс при удалении |
-| `__tests__/integration/reports` | 1 | 8 | TCO-список, TCO-детальный, дашборд (KPI, динамика 12 мес.) |
+| `__tests__/integration/reports` | 1 | 17 | TCO-список, TCO-детальный, дашборд (KPI), прогноз Holt-Winters |
 | `__tests__/integration/audit` | 1 | 5 | журнал операций, фильтры, RBAC, пагинация |
-| `__tests__/business-logic/` | 3 | 17 | план/факт-формула, CSV-парсер (Excel-RU, кириллица, числа с запятой), JWT-tampering |
-| **Итого** | **11** | **119** | — |
+| `__tests__/integration/zayavki` | 1 | 37 | заявки + RBAC + ручное назначение + **автонаводка** (local/global/409) |
+| `__tests__/integration/remonty` | 1 | 20 | ремонты: start/finish, владелец-ров, стоимости, audit |
+| `__tests__/business-logic/` | 4 | 33 | план/факт, CSV-парсер, JWT-tampering, **Holt-Winters** (16 тестов) |
+| **Итого** | **14** | **201** | — |
 
 ### Архитектура тестов
 
@@ -220,7 +223,7 @@ coverageThreshold: {
 }
 ```
 
-Текущие значения: **statements 78 %, branches 77 %, functions 79 %, lines 82 %**. `middleware/auth.js` и `middleware/rbac.js` покрыты на **100 %**.
+Текущие значения: **statements 80 %, branches 80 %, functions 84 %, lines 83 %**. `middleware/auth.js` и `middleware/rbac.js` покрыты на **100 %**.
 
 ### CI/CD
 
@@ -246,12 +249,37 @@ coverageThreshold: {
 - Чек-иконки в beige-плитках вместо обычных bullet-точек.
 - Микро-анимации: `logo-glide` у логотипа, `shake` при ошибке формы, `feat-in` появление пунктов.
 
+## Ролевая модель и рабочие места
+
+Система поддерживает **6 ролей**, каждая с уникальным интерфейсом:
+
+| Роль | Разделы | Ключевые возможности |
+|---|---|---|
+| **Пользователь** | Мои заявки | Создают заявки **только на ТС своего подразделения**, видят свои заявки и их статусы |
+| **Механик** | Мои ремонты | Стартует и закрывает ремонт с фиксацией стоимости работ и запчастей — видит только **свои** назначения |
+| **Диспетчер** | Распределение, Заявки | **Автонаводка** на свободных механиков (с учётом подразделения ТС и загрузки за 30 дней), ручное назначение, смена статусов |
+| **Главный механик** | все разделы | Кроме журнала — полный доступ к финансам, бюджетам, TCO, назначениям |
+| **Директор** | все разделы | Полный доступ, включая журнал аудита и редактирование любых ремонтов |
+| **Аналитик** | финансы + журнал | Read-only доступ к отчётам, бюджетам, TCO и аудиту |
+
+### Алгоритм «Автонаводки»
+
+`POST /api/zayavki/:id/auto-assign` — выбирает оптимального механика:
+
+1. **Local-pool**: механики, закреплённые за тем же подразделением, что и ТС из заявки.
+2. **Global fallback**: если в своём подразделении механиков нет — расширяемся на все подразделения.
+3. **Сортировка** внутри пула: `активные_ремонты ASC → ремонтов_за_30дн ASC → ФИО ASC`.
+4. **Результат**: создаётся запись в `remont`, статус заявки → «В работе», пишется аудит с меткой `auto-assign`.
+
+Кнопка «**Автонаводка всех**» в разделе П«Распределение» вызывает этот эндпоинт для каждой новой заявки в очереди.
+
 ## Дальнейшее развитие
 
-- [ ] Раздел «Транспортные средства» (CRUD + фильтры)
-- [ ] Заявки на ремонт (с прикреплением фото)
-- [ ] Канбан для механиков
-- [ ] Аналитический дашборд (графики по простоям, расходу запчастей)
+- [x] Заявки на ремонт + роли Пользователь/Диспетчер/Механик + автонаводка
+- [x] Прогнозирование расходов (Holt-Winters)
+- [ ] Канбан для механиков (drag‑and‑drop между статусами)
+- [ ] Прикрепление фотографий к заявкам (S3 / Cloudinary)
+- [ ] OCR для бумажных накладных (Tesseract.js)
 - [ ] Управление складом
 - [ ] Роли и права на эндпоинтах (RBAC middleware)
 
