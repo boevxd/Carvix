@@ -40,7 +40,7 @@
           <h2 class="section__title">${T('transport.title')}</h2>
           <div class="section__subtitle">${T('transport.subtitle')}</div>
         </div>
-        <div class="section__actions">
+        <div class="section__actions" id="tsTopActions" style="display:none">
           <button class="btn dark" id="btnAddTs">+ ${T('transport.add')}</button>
         </div>
       </div>
@@ -53,6 +53,12 @@
     async function load() {
       $('#tsList').innerHTML = `<div class="loading-screen"><div class="spinner"></div></div>`;
       const { items } = await window.api('/api/transport');
+
+      // Прячем верхнюю чёрную кнопку, когда список пуст —
+      // в empty-state есть своя CTA «Добавить первое ТС».
+      const topActions = $('#tsTopActions');
+      if (topActions) topActions.style.display = items.length ? '' : 'none';
+
       if (!items.length) {
         $('#tsList').innerHTML = `
           <div class="empty-state">
