@@ -85,12 +85,12 @@ async function loadUser() {
 
   // Полная карта: какая роль видит какие разделы
   const SECTIONS_BY_ROLE = {
-    'Директор':         ['dashboard','requests','dispatch','repairs','expenses','budgets','tco','receipts','audit'],
-    'Аналитик':         ['dashboard','requests','expenses','budgets','tco','receipts','audit'],
-    'Главный механик':  ['dashboard','requests','dispatch','repairs','expenses','budgets','tco','receipts'],
-    'Диспетчер':        ['requests','dispatch'],
-    'Механик':          ['repairs','requests'],
-    'Пользователь':     ['requests'],
+    'Директор':         ['dashboard','requests','dispatch','repairs','transport','expenses','budgets','tco','receipts','audit'],
+    'Аналитик':         ['dashboard','requests','transport','expenses','budgets','tco','receipts','audit'],
+    'Главный механик':  ['dashboard','requests','dispatch','repairs','transport','expenses','budgets','tco','receipts'],
+    'Диспетчер':        ['requests','dispatch','transport'],
+    'Механик':          ['repairs','requests','transport'],
+    'Пользователь':     ['requests','transport'],
   };
   const allowed = SECTIONS_BY_ROLE[role] || ['requests'];
 
