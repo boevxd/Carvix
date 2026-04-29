@@ -277,6 +277,39 @@ describe('POST /api/transport', () => {
     expect(insert.params[3]).toBe(7);
   });
 
+  it('Регрессия: если в JWT нет podrazdelenie_id (старый токен) — берётся из БД', async () => {
+    // Эмулируем старый JWT: токен Пользователя без поля podrazdelenie_id
+    const legacyToken = `Bearer ${tokenFor(ROLES.USER, { podrazdelenie_id: undefined })}`;
+
+    mockDb
+      // ВАЖНО: сначала идёт fallback-чтение подразделения из БД
+      .__when(/SELECT podrazdelenie_id FROM sotrudnik WHERE id = \?/i, [{ podrazdelenie_id: 7 }])
+      .__when(/SELECT id FROM model WHERE id/i, [{ id: 5 }])
+      .__when(/SELECT id FROM podrazdelenie WHERE id/i, [{ id: 7 }])
+      .__when(/SELECT id FROM transportnoe_sredstvo WHERE LOWER\(gos_nomer\)/i, [])
+      .__when(/INSERT INTO transportnoe_sredstvo/i, [{ id: 555 }])
+      .__when(/INSERT INTO finansoviy_log/i, []);
+
+    await request(app)
+      .post('/api/transport')
+      .set('Authorization', legacyToken)
+      .send(validBody)
+      .expect(201);
+
+    const insert = mockDb.__find(/INSERT INTO transportnoe_sredstvo/i);
+    expect(insert.params[3]).toBe(7); // pd_id из БД, а не undefined
+  });
+
+  it('400, если в JWT нет podrazdelenie_id и в БД у пользователя тоже null', async () => {
+    const legacyToken = `Bearer ${tokenFor(ROLES.USER, { podrazdelenie_id: undefined })}`;
+    mockDb.__when(/SELECT podrazdelenie_id FROM sotrudnik WHERE id = \?/i, [{ podrazdelenie_id: null }]);
+    await request(app)
+      .post('/api/transport')
+      .set('Authorization', legacyToken)
+      .send(validBody)
+      .expect(400);
+  });
+
   it('по умолчанию проставляет sostoyanie = "В строю"', async () => {
     mockDb
       .__when(/SELECT id FROM model WHERE id/i, [{ id: 5 }])

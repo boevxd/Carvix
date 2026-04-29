@@ -227,11 +227,23 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'gos_nomer, invent_nomer и model_id обязательны' });
   }
 
-  // RBAC: Пользователь — только в своё подразделение
+  // RBAC: Пользователь — только в своё подразделение.
+  // Если podrazdelenie_id не пришло в JWT (старый токен) — читаем из БД.
+  let userPdId = req.user.podrazdelenie_id;
+  if (!userPdId) {
+    const [u] = await pool.execute(
+      'SELECT podrazdelenie_id FROM sotrudnik WHERE id = ? LIMIT 1',
+      [req.user.id]
+    );
+    userPdId = u[0]?.podrazdelenie_id ?? null;
+  }
   if (!ROLE_READ_ALL.includes(req.user.rol_nazvanie)) {
-    podrazdelenie_id = req.user.podrazdelenie_id;
+    podrazdelenie_id = userPdId;
   } else if (!podrazdelenie_id) {
-    podrazdelenie_id = req.user.podrazdelenie_id;
+    podrazdelenie_id = userPdId;
+  }
+  if (!podrazdelenie_id) {
+    return res.status(400).json({ error: 'У вашего аккаунта не указано подразделение' });
   }
 
   // Валидация связей

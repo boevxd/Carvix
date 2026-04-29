@@ -95,6 +95,7 @@ router.post('/register', async (req, res) => {
         login: user.login,
         rol_id: user.rol_id,
         rol_nazvanie: user.rol_nazvanie,
+        podrazdelenie_id: user.podrazdelenie_id,
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
@@ -144,6 +145,7 @@ router.post('/login', async (req, res) => {
         login: user.login,
         rol_id: user.rol_id,
         rol_nazvanie: user.rol_nazvanie,
+        podrazdelenie_id: user.podrazdelenie_id,
       },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
