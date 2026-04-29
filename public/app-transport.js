@@ -182,11 +182,7 @@
                 ${podrazdeleniya.map(p => `<option value="${p.id}" ${p.id === window.CURRENT_USER.podrazdelenie_id ? 'selected' : ''}>${escape(p.nazvanie)}</option>`).join('')}
               </select>
             </label>
-          ` : `
-            <div class="full info-banner">
-              ℹ ${T('transport.your_division_only', { pd: escape(window.CURRENT_USER.podrazdelenie_nazvanie || '') })}
-            </div>
-          `}
+          ` : ''}
 
           <label class="full">${T('transport.state')}
             <select id="tState">
