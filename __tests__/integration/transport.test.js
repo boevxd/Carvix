@@ -114,25 +114,26 @@ describe('GET /api/transport/dict/*', () => {
    GET /api/transport
    ============================================================ */
 describe('GET /api/transport', () => {
-  it('Пользователь: SQL фильтрует по своему подразделению', async () => {
+  it('Пользователь: SQL фильтрует по sozdatel_id (свои ТС)', async () => {
     mockDb.__when(/FROM transportnoe_sredstvo ts/i, []);
     await request(app)
       .get('/api/transport')
       .set('Authorization', userAuth)
       .expect(200);
     const call = mockDb.__find(/FROM transportnoe_sredstvo ts/i);
-    expect(call.sql).toMatch(/WHERE ts\.podrazdelenie_id = \?/);
-    expect(call.params).toEqual([1]);
+    expect(call.sql).toMatch(/WHERE ts\.sozdatel_id = \?/);
+    // ROLES.USER — id=4 (из helpers/auth.js), без переопределения в tokenFor идёт 4
+    expect(call.params).toEqual([4]);
   });
 
-  it('Директор: без WHERE-фильтра', async () => {
+  it('Директор: без фильтрации по sozdatel_id', async () => {
     mockDb.__when(/FROM transportnoe_sredstvo ts/i, []);
     await request(app)
       .get('/api/transport')
       .set('Authorization', directorAuth)
       .expect(200);
     const call = mockDb.__find(/FROM transportnoe_sredstvo ts/i);
-    expect(call.sql).not.toMatch(/WHERE ts\.podrazdelenie_id/);
+    expect(call.sql).not.toMatch(/WHERE ts\.sozdatel_id/);
   });
 
   it('Директор: фильтр ?podrazdelenie_id=2 пробрасывается', async () => {
@@ -178,19 +179,29 @@ describe('GET /api/transport/:id', () => {
       .expect(404);
   });
 
-  it('Пользователь получает 403 на чужое подразделение', async () => {
+  it('Пользователь получает 403 на чужое ТС (sozdatel_id != id)', async () => {
     mockDb.__when(/FROM transportnoe_sredstvo ts/i, [
-      { id: 1, podrazdelenie_id: 99, gos_nomer: 'X' },
+      { id: 1, sozdatel_id: 99, gos_nomer: 'X' },
     ]);
     await request(app)
       .get('/api/transport/1')
-      .set('Authorization', userAuth)  // pd=1
+      .set('Authorization', userAuth)  // id=4
       .expect(403);
+  });
+
+  it('Пользователь видит своё ТС', async () => {
+    mockDb.__when(/FROM transportnoe_sredstvo ts/i, [
+      { id: 1, sozdatel_id: 4, gos_nomer: 'X' },
+    ]);
+    await request(app)
+      .get('/api/transport/1')
+      .set('Authorization', userAuth)
+      .expect(200);
   });
 
   it('Директор видит любое ТС', async () => {
     mockDb.__when(/FROM transportnoe_sredstvo ts/i, [
-      { id: 1, podrazdelenie_id: 99, gos_nomer: 'X' },
+      { id: 1, sozdatel_id: 99, gos_nomer: 'X' },
     ]);
     await request(app)
       .get('/api/transport/1')
@@ -332,7 +343,7 @@ describe('POST /api/transport', () => {
    ============================================================ */
 describe('PATCH /api/transport/:id', () => {
   it('404 если не найдено', async () => {
-    mockDb.__when(/SELECT id, podrazdelenie_id FROM transportnoe_sredstvo/i, []);
+    mockDb.__when(/SELECT id, podrazdelenie_id, sozdatel_id FROM transportnoe_sredstvo/i, []);
     await request(app)
       .patch('/api/transport/99')
       .set('Authorization', userAuth)
@@ -341,19 +352,19 @@ describe('PATCH /api/transport/:id', () => {
   });
 
   it('Пользователь получает 403 на чужое ТС', async () => {
-    mockDb.__when(/SELECT id, podrazdelenie_id FROM transportnoe_sredstvo/i, [
-      { id: 1, podrazdelenie_id: 99 },
+    mockDb.__when(/SELECT id, podrazdelenie_id, sozdatel_id FROM transportnoe_sredstvo/i, [
+      { id: 1, podrazdelenie_id: 99, sozdatel_id: 99 },
     ]);
     await request(app)
       .patch('/api/transport/1')
-      .set('Authorization', userAuth)  // pd=1
+      .set('Authorization', userAuth)  // id=4
       .send({ probeg: 5000 })
       .expect(403);
   });
 
   it('400 если нет полей для обновления', async () => {
-    mockDb.__when(/SELECT id, podrazdelenie_id FROM transportnoe_sredstvo/i, [
-      { id: 1, podrazdelenie_id: 1 },
+    mockDb.__when(/SELECT id, podrazdelenie_id, sozdatel_id FROM transportnoe_sredstvo/i, [
+      { id: 1, podrazdelenie_id: 1, sozdatel_id: 4 },
     ]);
     await request(app)
       .patch('/api/transport/1')
@@ -364,8 +375,8 @@ describe('PATCH /api/transport/:id', () => {
 
   it('200: обновляет probeg + audit', async () => {
     mockDb
-      .__when(/SELECT id, podrazdelenie_id FROM transportnoe_sredstvo/i, [
-        { id: 1, podrazdelenie_id: 1 },
+      .__when(/SELECT id, podrazdelenie_id, sozdatel_id FROM transportnoe_sredstvo/i, [
+        { id: 1, podrazdelenie_id: 1, sozdatel_id: 4 },
       ])
       .__when(/UPDATE transportnoe_sredstvo SET/i, [])
       .__when(/INSERT INTO finansoviy_log/i, []);
@@ -382,8 +393,8 @@ describe('PATCH /api/transport/:id', () => {
   });
 
   it('игнорирует неразрешённые поля (gos_nomer)', async () => {
-    mockDb.__when(/SELECT id, podrazdelenie_id FROM transportnoe_sredstvo/i, [
-      { id: 1, podrazdelenie_id: 1 },
+    mockDb.__when(/SELECT id, podrazdelenie_id, sozdatel_id FROM transportnoe_sredstvo/i, [
+      { id: 1, podrazdelenie_id: 1, sozdatel_id: 4 },
     ]);
     // Передаём только не-allowed поле → должно быть 400
     await request(app)
@@ -398,51 +409,79 @@ describe('PATCH /api/transport/:id', () => {
    DELETE /api/transport/:id
    ============================================================ */
 describe('DELETE /api/transport/:id', () => {
-  it('403 для Пользователя', async () => {
+  it('Пользователь: 403 на чужое ТС (sozdatel_id != id)', async () => {
+    mockDb.__when(/SELECT id, sozdatel_id FROM transportnoe_sredstvo/i, [
+      { id: 1, sozdatel_id: 99 },
+    ]);
     await request(app)
       .delete('/api/transport/1')
       .set('Authorization', userAuth)
       .expect(403);
   });
 
-  it('403 для Аналитика', async () => {
+  it('Пользователь: 200 на своё ТС (sozdatel_id == id)', async () => {
+    mockDb
+      .__when(/SELECT id, sozdatel_id FROM transportnoe_sredstvo/i, [
+        { id: 1, sozdatel_id: 4 },
+      ])
+      .__when(/SELECT COUNT\(\*\)::int AS n FROM zayavka WHERE ts_id/i, [{ n: 0 }])
+      .__when(/DELETE FROM transportnoe_sredstvo/i, [{ id: 1 }])
+      .__when(/INSERT INTO finansoviy_log/i, []);
+    const r = await request(app)
+      .delete('/api/transport/1')
+      .set('Authorization', userAuth)  // id=4
+      .expect(200);
+    expect(r.body).toEqual({ id: 1, deleted: true });
+  });
+
+  it('Аналитик: 403 (не в ROLE_DELETE и не владелец)', async () => {
+    mockDb.__when(/SELECT id, sozdatel_id FROM transportnoe_sredstvo/i, [
+      { id: 1, sozdatel_id: 99 },
+    ]);
     await request(app)
       .delete('/api/transport/1')
       .set('Authorization', analyticAuth)
       .expect(403);
   });
 
-  it('403 для Диспетчера', async () => {
+  it('Диспетчер: 403 на чужое ТС', async () => {
+    mockDb.__when(/SELECT id, sozdatel_id FROM transportnoe_sredstvo/i, [
+      { id: 1, sozdatel_id: 99 },
+    ]);
     await request(app)
       .delete('/api/transport/1')
       .set('Authorization', dispetcherAuth)
       .expect(403);
   });
 
+  it('Директор: может удалить чужое ТС', async () => {
+    mockDb
+      .__when(/SELECT id, sozdatel_id FROM transportnoe_sredstvo/i, [
+        { id: 1, sozdatel_id: 999 },
+      ])
+      .__when(/SELECT COUNT\(\*\)::int AS n FROM zayavka WHERE ts_id/i, [{ n: 0 }])
+      .__when(/DELETE FROM transportnoe_sredstvo/i, [{ id: 1 }])
+      .__when(/INSERT INTO finansoviy_log/i, []);
+    await request(app)
+      .delete('/api/transport/1')
+      .set('Authorization', directorAuth)
+      .expect(200);
+  });
+
   it('409 если на ТС есть заявки', async () => {
-    mockDb.__when(/SELECT COUNT\(\*\)::int AS n FROM zayavka WHERE ts_id/i, [{ n: 3 }]);
+    mockDb
+      .__when(/SELECT id, sozdatel_id FROM transportnoe_sredstvo/i, [
+        { id: 1, sozdatel_id: 1 },
+      ])
+      .__when(/SELECT COUNT\(\*\)::int AS n FROM zayavka WHERE ts_id/i, [{ n: 3 }]);
     await request(app)
       .delete('/api/transport/1')
       .set('Authorization', directorAuth)
       .expect(409);
   });
 
-  it('200 при успешном удалении', async () => {
-    mockDb
-      .__when(/SELECT COUNT\(\*\)::int AS n FROM zayavka WHERE ts_id/i, [{ n: 0 }])
-      .__when(/DELETE FROM transportnoe_sredstvo/i, [{ id: 1 }])
-      .__when(/INSERT INTO finansoviy_log/i, []);
-    const r = await request(app)
-      .delete('/api/transport/1')
-      .set('Authorization', directorAuth)
-      .expect(200);
-    expect(r.body).toEqual({ id: 1, deleted: true });
-  });
-
   it('404 если ТС не найдено', async () => {
-    mockDb
-      .__when(/SELECT COUNT\(\*\)::int AS n FROM zayavka WHERE ts_id/i, [{ n: 0 }])
-      .__when(/DELETE FROM transportnoe_sredstvo/i, []);
+    mockDb.__when(/SELECT id, sozdatel_id FROM transportnoe_sredstvo/i, []);
     await request(app)
       .delete('/api/transport/999')
       .set('Authorization', directorAuth)

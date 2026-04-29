@@ -174,7 +174,9 @@
       'transport.deleted':         'ТС удалено',
       'transport.confirm_delete':  'Удалить это ТС?',
       'transport.your_division_only': 'ТС будет добавлено в ваше подразделение: {pd}',
+      'transport.created_by':      'Добавил',
       'common.choose':             'выберите',
+      'common.edit':               'Изменить',
 
       // ---- Dashboard ----
       'dashboard.title':       'Дашборд',
@@ -566,7 +568,9 @@
       'transport.deleted':         'Vehicle deleted',
       'transport.confirm_delete':  'Delete this vehicle?',
       'transport.your_division_only': 'Vehicle will be added to your division: {pd}',
+      'transport.created_by':      'Added by',
       'common.choose':             'choose',
+      'common.edit':               'Edit',
 
       // ---- Dashboard ----
       'dashboard.title':       'Dashboard',

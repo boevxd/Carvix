@@ -47,8 +47,12 @@ CREATE TABLE IF NOT EXISTS transportnoe_sredstvo (
   podrazdelenie_id      INT NOT NULL REFERENCES podrazdelenie(id),
   probeg                INT,
   data_vypuska          DATE,
-  tekuschee_sostoyanie  VARCHAR(100)
+  tekuschee_sostoyanie  VARCHAR(100),
+  sozdatel_id           INT REFERENCES sotrudnik(id)  -- кто создал ТС, для приватности у обычных пользователей
 );
+
+-- Миграция для существующих БД (PG 9.6+): добавляем sozdatel_id, если его ещё нет.
+ALTER TABLE transportnoe_sredstvo ADD COLUMN IF NOT EXISTS sozdatel_id INT REFERENCES sotrudnik(id);
 
 -- 7. Статус
 CREATE TABLE IF NOT EXISTS status (

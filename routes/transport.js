@@ -19,10 +19,11 @@
  *   GET    /api/transport/dict/podrazdeleniya — подразделения (для селектов)
  *
  * RBAC:
- *   • Пользователь видит ТС своего подразделения, может создавать ТС только туда.
- *   • Механик видит все ТС (read-only) — нужен для контекста ремонтов.
- *   • Диспетчер/Главный механик/Директор/Аналитик — все ТС.
- *   • Удалять — только Директор и Главный механик.
+ *   • Пользователь видит ТОЛЬКО ТС, которые он сам создал (sozdatel_id = req.user.id).
+ *   • Механик видит все ТС (read-only) — нужно для контекста ремонтов.
+ *   • Диспетчер/Главный механик/Директор/Аналитик — все ТС автопарка.
+ *   • Удалять: Директор/Главный механик — любые; обычный пользователь — только свои.
+ *   • Защита: нельзя удалить ТС, если на него уже есть заявки.
  */
 
 const express = require('express');
@@ -140,10 +141,10 @@ router.get('/', async (req, res) => {
   const params = [];
   let where = '';
 
-  // Пользователь — только своё подразделение.
+  // Пользователь — видит только то, что сам создал.
   if (!ROLE_READ_ALL.includes(role)) {
-    where = 'WHERE ts.podrazdelenie_id = ?';
-    params.push(req.user.podrazdelenie_id);
+    where = 'WHERE ts.sozdatel_id = ?';
+    params.push(req.user.id);
   }
 
   // Опциональный фильтр по подразделению (для админских ролей)
@@ -163,16 +164,19 @@ router.get('/', async (req, res) => {
       ts.data_vypuska,
       ts.tekuschee_sostoyanie,
       ts.podrazdelenie_id,
+      ts.sozdatel_id,
       pd.nazvanie AS podrazdelenie,
       m.id        AS model_id,
       m.nazvanie  AS model,
       mk.id       AS marka_id,
       mk.nazvanie AS marka,
+      sz.fio      AS sozdatel_fio,
       (SELECT COUNT(*) FROM zayavka z WHERE z.ts_id = ts.id) AS kolichestvo_zayavok
     FROM transportnoe_sredstvo ts
     JOIN model m  ON m.id = ts.model_id
     JOIN marka mk ON mk.id = m.marka_id
     JOIN podrazdelenie pd ON pd.id = ts.podrazdelenie_id
+    LEFT JOIN sotrudnik sz ON sz.id = ts.sozdatel_id
     ${where}
     ORDER BY ts.id DESC
     `,
@@ -191,11 +195,12 @@ router.get('/:id', async (req, res) => {
   const [rows] = await pool.execute(
     `
     SELECT ts.*, m.nazvanie AS model, mk.id AS marka_id, mk.nazvanie AS marka,
-           pd.nazvanie AS podrazdelenie
+           pd.nazvanie AS podrazdelenie, sz.fio AS sozdatel_fio
     FROM transportnoe_sredstvo ts
     JOIN model m  ON m.id = ts.model_id
     JOIN marka mk ON mk.id = m.marka_id
     JOIN podrazdelenie pd ON pd.id = ts.podrazdelenie_id
+    LEFT JOIN sotrudnik sz ON sz.id = ts.sozdatel_id
     WHERE ts.id = ?
     `,
     [id]
@@ -203,9 +208,9 @@ router.get('/:id', async (req, res) => {
   if (!rows.length) return res.status(404).json({ error: 'not found' });
 
   const ts = rows[0];
-  // Пользователь видит только своё подразделение
+  // Пользователь видит только то, что сам создал.
   if (!ROLE_READ_ALL.includes(req.user.rol_nazvanie)
-      && ts.podrazdelenie_id !== req.user.podrazdelenie_id) {
+      && ts.sozdatel_id !== req.user.id) {
     return res.status(403).json({ error: 'forbidden' });
   }
   res.json(ts);
@@ -264,10 +269,10 @@ router.post('/', async (req, res) => {
 
   const [ins] = await pool.execute(
     `INSERT INTO transportnoe_sredstvo
-       (gos_nomer, invent_nomer, model_id, podrazdelenie_id, probeg, data_vypuska, tekuschee_sostoyanie)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+       (gos_nomer, invent_nomer, model_id, podrazdelenie_id, probeg, data_vypuska, tekuschee_sostoyanie, sozdatel_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      RETURNING id`,
-    [gos_nomer, invent_nomer, model_id, podrazdelenie_id, probeg, data_vypuska, sostoyanie]
+    [gos_nomer, invent_nomer, model_id, podrazdelenie_id, probeg, data_vypuska, sostoyanie, req.user.id]
   );
   const newId = ins[0].id;
   await audit(req.user.id, 'create', 'transportnoe_sredstvo', newId, null, gos_nomer);
@@ -282,14 +287,14 @@ router.patch('/:id', async (req, res) => {
   if (!id) return res.status(400).json({ error: 'invalid id' });
 
   const [rows] = await pool.execute(
-    'SELECT id, podrazdelenie_id FROM transportnoe_sredstvo WHERE id = ? LIMIT 1',
+    'SELECT id, podrazdelenie_id, sozdatel_id FROM transportnoe_sredstvo WHERE id = ? LIMIT 1',
     [id]
   );
   if (!rows.length) return res.status(404).json({ error: 'not found' });
 
-  // RBAC: Пользователь обновляет только своё подразделение
+  // RBAC: обычный Пользователь может править только свои ТС.
   if (!ROLE_READ_ALL.includes(req.user.rol_nazvanie)
-      && rows[0].podrazdelenie_id !== req.user.podrazdelenie_id) {
+      && rows[0].sozdatel_id !== req.user.id) {
     return res.status(403).json({ error: 'forbidden' });
   }
 
@@ -314,14 +319,27 @@ router.patch('/:id', async (req, res) => {
 });
 
 /* ---------------------------------------------------------------
-   DELETE /api/transport/:id — только Директор/Гл. механик
+   DELETE /api/transport/:id
+   • Директор/Главный механик — могут удалить любое ТС
+   • Обычные роли (включая Пользователя) — только своё (sozdatel_id = id)
+   • В обоих случаях: 409 если на ТС уже есть заявки.
    --------------------------------------------------------------- */
 router.delete('/:id', async (req, res) => {
-  if (!ROLE_DELETE.includes(req.user.rol_nazvanie)) {
-    return res.status(403).json({ error: 'forbidden' });
-  }
   const id = intOrNull(req.params.id);
   if (!id) return res.status(400).json({ error: 'invalid id' });
+
+  // Сначала достаём ТС, чтобы понять — это «своё» или «чужое»
+  const [tsRows] = await pool.execute(
+    'SELECT id, sozdatel_id FROM transportnoe_sredstvo WHERE id = ? LIMIT 1',
+    [id]
+  );
+  if (!tsRows.length) return res.status(404).json({ error: 'not found' });
+
+  const isAdmin = ROLE_DELETE.includes(req.user.rol_nazvanie);
+  const isOwner = tsRows[0].sozdatel_id === req.user.id;
+  if (!isAdmin && !isOwner) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
 
   // Защита: не даём удалять, если есть заявки
   const [used] = await pool.execute('SELECT COUNT(*)::int AS n FROM zayavka WHERE ts_id = ?', [id]);

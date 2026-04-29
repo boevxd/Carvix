@@ -32,6 +32,7 @@
   async function renderTransport(root) {
     const role = window.CURRENT_USER?.rol_nazvanie || '';
     const isAdmin = ['Директор','Главный механик'].includes(role);
+    const myId = window.CURRENT_USER?.id;
 
     root.innerHTML = `
       <div class="section__head">
@@ -92,12 +93,18 @@
               <span class="ts-card__label">${T('transport.year')}</span>
               <span class="ts-card__value">${fmtDate(t.data_vypuska)}</span>
             </div>
+            ${isAdmin && t.sozdatel_fio ? `
+              <div class="ts-card__row">
+                <span class="ts-card__label">${T('transport.created_by') || 'Добавил'}</span>
+                <span class="ts-card__value">${escape(t.sozdatel_fio)}</span>
+              </div>
+            ` : ''}
           </div>
           <div class="ts-card__foot">
             <span class="ts-card__chip">📋 ${t.kolichestvo_zayavok || 0} ${T('transport.zayavok')}</span>
             <div class="ts-card__actions">
-              <button class="btn btn--ghost btn--sm" data-act="edit" data-id="${t.id}">✎</button>
-              ${isAdmin ? `<button class="btn btn--ghost btn--sm btn--danger" data-act="del" data-id="${t.id}" title="${T('common.delete')}">🗑</button>` : ''}
+              <button class="btn btn--ghost btn--sm" data-act="edit" data-id="${t.id}" title="${T('common.edit') || 'Изменить'}">✎</button>
+              ${(isAdmin || t.sozdatel_id === myId) ? `<button class="btn btn--ghost btn--sm btn--danger" data-act="del" data-id="${t.id}" title="${T('common.delete')}">🗑</button>` : ''}
             </div>
           </div>
         </div>
