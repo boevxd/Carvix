@@ -658,12 +658,41 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-sp
 [data-theme="dark"] .req-card__totals { background: rgba(47, 143, 94, .14); }
 
 /* Кнопки-варианты */
+/* .btn--accent: фирменный градиент. Используется для главных action-кнопок:
+   «Автонаводка», «Назначить», «Начать ремонт». Стили заданы максимально жёстко
+   (через background-image + background-color), потому что базовый .btn
+   объявляет background-shorthand, и при простом переопределении
+   shorthand-в-shorthand при некоторых порядках каскада текст становится
+   белым на белом фоне. */
+.btn.btn--accent,
 .btn--accent {
-  background: linear-gradient(135deg, #b89460, #c8a876);
-  color: #fff !important;
+  background-color: #b89460;
+  background-image: linear-gradient(135deg, #b89460, #c8a876);
+  color: #fff;
   border: 1px solid #a17e4d;
+  font-weight: 600;
+  text-shadow: 0 1px 1px rgba(0,0,0,.12);
 }
-.btn--accent:hover { filter: brightness(1.08); }
+.btn.btn--accent:hover,
+.btn--accent:hover {
+  background-color: #a8845a;
+  background-image: linear-gradient(135deg, #a8845a, #b89460);
+  color: #fff;
+  filter: brightness(1.05);
+}
+[data-theme="dark"] .btn.btn--accent,
+[data-theme="dark"] .btn--accent {
+  background-color: #c8a876;
+  background-image: linear-gradient(135deg, #c8a876, #d4ac6e);
+  color: #14161b;
+  border-color: #c8a876;
+  text-shadow: none;
+}
+[data-theme="dark"] .btn.btn--accent:hover,
+[data-theme="dark"] .btn--accent:hover {
+  background-image: linear-gradient(135deg, #d4ac6e, #e0bc88);
+}
+
 .btn--ghost {
   background: transparent;
   color: var(--c-muted);
